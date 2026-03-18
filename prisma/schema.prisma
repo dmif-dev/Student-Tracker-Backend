@@ -112,10 +112,11 @@ model User {
   adminProfile Admin?
 
   // Relations - One-to-many
-  notifications Notification[]  @relation("UserNotifications")
-  sessions      UserSession[]
-  auditLogs     AuditLog[]
-  importJobs    BulkImportJob[]
+  notifications    Notification[]    @relation("UserNotifications")
+  sessions         UserSession[]
+  auditLogs        AuditLog[]
+  importJobs       BulkImportJob[]
+  scheduledReports ScheduledReport[]
 
   // Auth fields
   refreshToken           String?
@@ -474,17 +475,16 @@ model BulkImportJob {
 }
 
 model ScheduledReport {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   name       String
-  frequency  String   // daily, weekly, monthly
-  config     Json     // Report configuration
+  frequency  String // daily, weekly, monthly
+  config     Json // Report configuration
   recipients String[] // Email addresses
-  isActive   Boolean  @default(true)
+  isActive   Boolean   @default(true)
   createdBy  String
+  user       User      @relation(fields: [createdBy], references: [id]) // This now has a matching opposite relation
   lastRunAt  DateTime?
   nextRunAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  user       User     @relation(fields: [createdBy], references: [id])
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }

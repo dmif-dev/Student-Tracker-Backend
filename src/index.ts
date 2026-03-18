@@ -9,6 +9,7 @@ import { prisma } from './lib/prisma.js';
 // Import routes
 import programRoutes from './routes/programs.routes.js';
 import progressRoutes from './routes/progress.routes.js';
+import reportRoutes from './routes/reports.routes.js';
 // Remove authentication middleware for testing
 // import { authenticate } from './middleware/auth.middleware.js';
 
@@ -34,6 +35,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Routes
 app.use('/api/programs', programRoutes);
 app.use('/api/progress', progressRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -56,6 +58,7 @@ app.listen(port, () => {
   console.log(`📝 Health check: http://localhost:${port}/health`);
   console.log(`📚 Programs API: http://localhost:${port}/api/programs`);
   console.log(`📊 Progress API: http://localhost:${port}/api/progress`);
+  console.log(`📊 Reports API: http://localhost:${port}/api/reports`);
 });
 
 export default app;
