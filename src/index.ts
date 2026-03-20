@@ -12,6 +12,7 @@ import progressRoutes from './routes/progress.routes.js';
 import reportRoutes from './routes/reports.routes.js';
 import mentorRoutes from './routes/mentor.routes.js';
 import sessionRoutes from './routes/session.routes.js';
+import documentRoutes from './routes/document.routes.js';
 
 // Remove authentication middleware for testing
 // import { authenticate } from './middleware/auth.middleware.js';
@@ -41,6 +42,10 @@ app.use('/api/progress', progressRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/mentors', mentorRoutes);
 app.use('/api/sessions', sessionRoutes);
+app.use('/api/documents', documentRoutes);
+
+// Serve uploaded files statically
+app.use('/uploads', express.static('uploads'));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -66,6 +71,8 @@ app.listen(port, () => {
   console.log(`📊 Reports API: http://localhost:${port}/api/reports`);
   console.log(`📊 Mentors API: http://localhost:${port}/api/mentors`);
   console.log(`📊 Sessions API: http://localhost:${port}/api/sessions`);
+  console.log(`📊 Documents API: http://localhost:${port}/api/documents`);
+  console.log(`📊 Uploads: http://localhost:${port}/uploads`);
 });
 
 export default app;

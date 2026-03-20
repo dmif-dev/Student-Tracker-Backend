@@ -73,7 +73,7 @@ export class SessionController {
             select: {
               name: true,
               user: {
-                select: { email: true }
+                select: { id: true, email: true }
               }
             }
           },
@@ -81,7 +81,7 @@ export class SessionController {
             select: {
               name: true,
               user: {
-                select: { email: true }
+                select: { id: true, email: true }
               }
             }
           }

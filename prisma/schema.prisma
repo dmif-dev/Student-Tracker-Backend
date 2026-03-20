@@ -248,6 +248,7 @@ model Mentor {
   documents        Document[]
   notifications    Notification[] @relation("MentorNotifications")
   outcomes         Outcome[]      @relation("MentorOutcomes")
+  folders          Folder[]       @relation("MentorFolders") // Add this line!
 }
 
 // Mentor availability for scheduling
@@ -353,6 +354,23 @@ model Document {
 
   // Relations
   permissions DocumentPermission[]
+  folderId    String?
+  folder      Folder?              @relation("FolderDocuments", fields: [folderId], references: [id])
+}
+
+model Folder {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  program     ProgramType
+  track       String?
+  createdBy   String
+  mentor      Mentor?     @relation("MentorFolders", fields: [createdBy], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  documents Document[] @relation("FolderDocuments")
 }
 
 // Document permissions
