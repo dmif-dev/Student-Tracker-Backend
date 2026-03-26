@@ -10,7 +10,7 @@ import { prisma } from './lib/prisma.js';
 import programRoutes from './routes/programs.routes.js';
 import progressRoutes from './routes/progress.routes.js';
 import reportRoutes from './routes/reports.routes.js';
-import mentorRoutes from './routes/mentor.routes.js';
+import mentorFeatureRoutes from './routes/mentor.routes.js';
 import sessionRoutes from './routes/session.routes.js';
 import documentRoutes from './routes/document.routes.js';
 import outcomeRoutes from './routes/outcome.routes.js';
@@ -25,6 +25,13 @@ import assignmentRoutes from './routes/assignment.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 import { apiLimiter, authLimiter, uploadLimiter } from './middleware/rate-limit.middleware.js';
 import { CronService } from './services/cron.service.js';
+
+// Auth and user routes
+import userRoutes from './routes/user.js';
+import adminRoutes from './routes/admin.js';
+import mentorAuthRoutes from './routes/mentor.js';
+import studentRoutes from './routes/student.js';
+import emailRoutes from './routes/email.js';
 
 // Remove authentication middleware for testing
 // import { authenticate } from './middleware/auth.middleware.js';
@@ -55,7 +62,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/api/programs', programRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/reports', reportRoutes);
-app.use('/api/mentors', mentorRoutes);
+app.use('/api/mentors', mentorFeatureRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/outcomes', outcomeRoutes);
@@ -91,6 +98,12 @@ app.use((err: any, req: any, res: any, next: any) => {
   console.error('Error:', err.stack);
   res.status(500).json({ error: 'Something went wrong!' });
 });
+
+app.use('/api/user', userRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/mentor', mentorAuthRoutes);
+app.use('/api/student', studentRoutes);
+app.use('/api/email', emailRoutes);
 
 // Start server
 app.listen(port, () => {

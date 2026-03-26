@@ -1,0 +1,30 @@
+<%- include('_header') %>
+
+<div style="text-align: center; margin-bottom: 24px;">
+    <div style="background-color: #f0fdf4; width: 56px; height: 56px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
+        <span style="font-size: 28px; line-height: 56px;">📝</span>
+    </div>
+    <h1 style="font-size: 24px; font-weight: 700; color: #16a34a; margin: 0;">Assignment Received</h1>
+</div>
+
+<p style="font-size: 16px; color: #334155; line-height: 1.6; margin-bottom: 16px;">Dear <strong><%= data.studentName %></strong>,</p>
+<p style="font-size: 16px; color: #334155; line-height: 1.6; margin-bottom: 24px;">Your assignment back up execution for <strong><%= data.subjectName %></strong> has been successfully received.</p>
+
+<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin-bottom: 32px;">
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td style="padding-bottom: 12px; font-size: 14px; color: #64748b; width: 100px;">Assignment</td>
+            <td style="padding-bottom: 12px; font-size: 15px; font-weight: 600; color: #0f172a;"><%= data.title %></td>
+        </tr>
+        <tr>
+            <td style="font-size: 14px; color: #64748b;">Submitted At</td>
+            <td style="font-size: 15px; font-weight: 600; color: #ff6633;"><%= new Date().toLocaleString() %></td>
+        </tr>
+    </table>
+</div>
+
+<div style="text-align: center; margin-bottom: 32px;">
+    <a href="<%= data.link %>" style="background-color: #16a34a; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 600; padding: 14px 32px; border-radius: 100px; display: inline-block;">View Submission</a>
+</div>
+
+<%- include('_footer') %>

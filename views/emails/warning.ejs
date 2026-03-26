@@ -1,0 +1,30 @@
+<%- include('_header') %>
+
+<div style="text-align: center; margin-bottom: 24px;">
+    <div style="background-color: #fef2f2; width: 56px; height: 56px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
+        <span style="font-size: 28px; line-height: 56px;">⚠️</span>
+    </div>
+    <h1 style="font-size: 24px; font-weight: 700; color: #dc2626; margin: 0;">Academic Warning</h1>
+</div>
+
+<p style="font-size: 16px; color: #334155; line-height: 1.6; margin-bottom: 16px;">Dear <strong><%= data.studentName %></strong>,</p>
+<p style="font-size: 16px; color: #334155; line-height: 1.6; margin-bottom: 24px;">This is to inform you that your attendance in <strong><%= data.course %></strong> has fallen below requirements.</p>
+
+<div style="background-color: #fff1f2; border: 1px solid #fecdd3; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 32px;">
+    <p style="margin: 0; font-size: 14px; color: #9f1239; font-weight: 600;">Current Attendance</p>
+    <p style="margin: 4px 0 0 0; font-size: 32px; font-weight: 800; color: #e11d48;"><%= data.attendance %>%</p>
+</div>
+
+<div style="background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 16px; margin-bottom: 32px;">
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td style="vertical-align: top; width: 32px; font-size: 20px;">💡</td>
+            <td>
+                <p style="margin: 0; font-size: 14px; font-weight: 600; color: #0369a1;">Required Action</p>
+                <p style="margin: 4px 0 0 0; font-size: 14px; color: #0c4a6e; line-height: 1.5;">Please meet your mentor or course instructor immediately to discuss your attendance and prevent critical consequences.</p>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<%- include('_footer') %>
