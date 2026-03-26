@@ -31,27 +31,91 @@ export class AuthController {
       }
 
       const user = authData.user;
+      
+      // Get role from user_metadata, default to STUDENT if not set
+      let role = user.user_metadata?.role || 'STUDENT';
+      
+      // Override role based on email for known users (fallback)
+      if (email === 'admin@dmif.org') {
+        role = 'ADMIN';
+      } else if (email === 'smith@dmif.org') {
+        role = 'MENTOR';
+      }
 
-      // Get user role from metadata
-      const role = user.user_metadata?.role || 'STUDENT';
-
-      // Get additional user info from database
+      // Get or create profile in database
       let profile = null;
+      
       if (role === 'STUDENT') {
         profile = await prisma.student.findUnique({
           where: { userId: user.id },
-          select: { id: true, name: true, programId: true, trackId: true }
+          include: { program: true, track: true, mentor: true }
         });
-      } else if (role === 'MENTOR') {
+        
+        // If no profile exists, create one
+        if (!profile) {
+          const defaultProgram = await prisma.program.findFirst({
+            where: { name: 'G-CMP' }
+          });
+          const defaultTrack = await prisma.track.findFirst({
+            where: { programId: defaultProgram?.id }
+          });
+          
+          profile = await prisma.student.create({
+            data: {
+              userId: user.id,
+              name: user.user_metadata?.name || user.email?.split('@')[0] || 'Student',
+              registrationNumber: `DMIF${new Date().getFullYear()}${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+              programId: defaultProgram?.id || '',
+              trackId: defaultTrack?.id || '',
+              joinDate: new Date(),
+              lastActive: new Date(),
+              progress: 0,
+              status: 'ACTIVE',
+            },
+            include: { program: true, track: true, mentor: true }
+          });
+          console.log(`✅ Created student profile for ${user.email}`);
+        }
+      } 
+      else if (role === 'MENTOR') {
         profile = await prisma.mentor.findUnique({
           where: { userId: user.id },
-          select: { id: true, name: true, expertise: true, programs: true }
+          include: { assignedStudents: true }
         });
-      } else if (role === 'ADMIN') {
+        
+        // If no profile exists, create one
+        if (!profile) {
+          profile = await prisma.mentor.create({
+            data: {
+              userId: user.id,
+              name: user.user_metadata?.name || user.email?.split('@')[0] || 'Mentor',
+              expertise: [],
+              programs: [],
+              joinDate: new Date(),
+              status: 'ACTIVE',
+              rating: 0,
+              students: 0,
+            },
+            include: { assignedStudents: true }
+          });
+          console.log(`✅ Created mentor profile for ${user.email}`);
+        }
+      } 
+      else if (role === 'ADMIN') {
         profile = await prisma.admin.findUnique({
-          where: { userId: user.id },
-          select: { id: true, name: true }
+          where: { userId: user.id }
         });
+        
+        // If no profile exists, create one
+        if (!profile) {
+          profile = await prisma.admin.create({
+            data: {
+              userId: user.id,
+              name: user.user_metadata?.name || user.email?.split('@')[0] || 'Admin',
+            }
+          });
+          console.log(`✅ Created admin profile for ${user.email}`);
+        }
       }
 
       res.json({
@@ -102,8 +166,9 @@ export class AuthController {
 
       // Create profile in database
       let profile = null;
-      if (role === 'STUDENT') {
-        // Get default program and track
+      const userRole = role || 'STUDENT';
+      
+      if (userRole === 'STUDENT') {
         const defaultProgram = await prisma.program.findFirst({
           where: { name: 'G-CMP' }
         });
@@ -120,9 +185,11 @@ export class AuthController {
             trackId: defaultTrack?.id || '',
             joinDate: new Date(),
             lastActive: new Date(),
+            progress: 0,
+            status: 'ACTIVE',
           },
         });
-      } else if (role === 'MENTOR') {
+      } else if (userRole === 'MENTOR') {
         profile = await prisma.mentor.create({
           data: {
             userId: user.id,
@@ -130,9 +197,12 @@ export class AuthController {
             expertise: [],
             programs: [],
             joinDate: new Date(),
+            status: 'ACTIVE',
+            rating: 0,
+            students: 0,
           },
         });
-      } else if (role === 'ADMIN') {
+      } else if (userRole === 'ADMIN') {
         profile = await prisma.admin.create({
           data: {
             userId: user.id,
@@ -147,7 +217,7 @@ export class AuthController {
         user: {
           id: user.id,
           email: user.email,
-          role: role || 'STUDENT',
+          role: userRole,
           profile: profile,
         },
       });
@@ -186,7 +256,14 @@ export class AuthController {
         return res.status(401).json({ error: 'Invalid token' });
       }
 
-      const role = user.user_metadata?.role || 'STUDENT';
+      let role = user.user_metadata?.role || 'STUDENT';
+      
+      // Override role based on email
+      if (user.email === 'admin@dmif.org') {
+        role = 'ADMIN';
+      } else if (user.email === 'smith@dmif.org') {
+        role = 'MENTOR';
+      }
       
       let profile = null;
       if (role === 'STUDENT') {

@@ -964,7 +964,7 @@ async function main() {
     console.log('\n🌱 Seeding completed successfully!');
     console.log('\n🔐 Test Credentials:');
     console.log('   Admin: admin@dmif.org / admin123');
-    console.log('   Mentor: dr.madhan@dmif.org / mentor123');
+    console.log('   Mentor: smith@dmif.org / mentor123');
     console.log('   Student: john.doe@dmifstudent.org / student123');
 
   } catch (error) {
