@@ -1,0 +1,3 @@
+studentEmail,type,title,status,date,tags
+john.test@example.com,PATENT,AI-based Patent Search System,FILED,2024-03-20,AI,Patent
+jane.test@example.com,PAPER,Advances in AI Research,PUBLISHED,2024-03-15,AI,Research

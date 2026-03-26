@@ -95,6 +95,14 @@ enum ImportStatus {
   FAILED
 }
 
+enum SubmissionStatus {
+  SUBMITTED
+  GRADED
+  LATE
+  MISSING
+  RESUBMITTED
+}
+
 // User accounts for authentication
 model User {
   id        String    @id @default(cuid())
@@ -117,6 +125,9 @@ model User {
   auditLogs        AuditLog[]
   importJobs       BulkImportJob[]
   scheduledReports ScheduledReport[]
+  dashboards       Dashboard[]
+  savedReports     SavedReport[]
+  activities       UserActivity[]
 
   // Auth fields
   refreshToken           String?
@@ -125,6 +136,18 @@ model User {
   emailVerified          Boolean   @default(false)
   emailVerificationToken String?
   preferences            Json?
+}
+
+// Activity Logs (for user activity tracking)
+model UserActivity {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String // 'login', 'progress_added', 'session_joined', etc.
+  metadata  Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
 }
 
 // Program model
@@ -187,6 +210,23 @@ model Admin {
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  announcements Announcement[]
+}
+
+// Announcements (for admin to notify all)
+model Announcement {
+  id        String    @id @default(cuid())
+  title     String
+  content   String
+  target    String // 'all', 'students', 'mentors', 'admin'
+  priority  String // 'low', 'medium', 'high'
+  createdBy String
+  admin     Admin     @relation(fields: [createdBy], references: [id])
+  isActive  Boolean   @default(true)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 // Student profile
@@ -220,6 +260,13 @@ model Student {
   sessions            Session[] // as mentee
   notifications       Notification[]       @relation("StudentNotifications")
   tagAssignments      TagAssignment[]      @relation("StudentTags")
+
+  dashboardStats DashboardStats?
+  studentTags    StudentTag[]
+  submissions    Submission[]
+
+  // for achievements
+  achievements Achievement[]
 }
 
 // Mentor profile
@@ -249,6 +296,23 @@ model Mentor {
   notifications    Notification[] @relation("MentorNotifications")
   outcomes         Outcome[]      @relation("MentorOutcomes")
   folders          Folder[]       @relation("MentorFolders") // Add this line!
+
+  assignments Assignment[]
+  preferences MentorPreference?
+}
+
+// Mentor Session Preferences
+model MentorPreference {
+  id              String   @id @default(cuid())
+  mentorId        String
+  mentor          Mentor   @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+  sessionDuration Int      @default(60) // minutes
+  bufferTime      Int      @default(15) // minutes between sessions
+  autoAccept      Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([mentorId])
 }
 
 // Mentor availability for scheduling
@@ -356,6 +420,7 @@ model Document {
   permissions DocumentPermission[]
   folderId    String?
   folder      Folder?              @relation("FolderDocuments", fields: [folderId], references: [id])
+  assignments Assignment[]
 }
 
 model Folder {
@@ -390,7 +455,45 @@ model DocumentPermission {
   @@unique([documentId, userId])
 }
 
+model Assignment {
+  id          String      @id @default(cuid())
+  title       String
+  description String?
+  documentId  String
+  document    Document    @relation(fields: [documentId], references: [id])
+  dueDate     DateTime
+  points      Int         @default(100)
+  program     ProgramType
+  track       String?
+  mentorId    String
+  mentor      Mentor      @relation(fields: [mentorId], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  submissions Submission[]
+}
+
+model Submission {
+  id           String           @id @default(cuid())
+  assignmentId String
+  assignment   Assignment       @relation(fields: [assignmentId], references: [id])
+  studentId    String
+  student      Student          @relation(fields: [studentId], references: [id])
+  content      String?
+  files        String[] // URLs to submitted files
+  status       SubmissionStatus @default(SUBMITTED)
+  grade        Int?
+  feedback     String?
+  gradedBy     String?
+  gradedAt     DateTime?
+  submittedAt  DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([assignmentId, studentId])
+}
+
 // Outcomes (patents, papers, startups, certifications)
+// Enhance the existing Outcome model
 model Outcome {
   id          String        @id @default(cuid())
   type        OutcomeType
@@ -403,10 +506,96 @@ model Outcome {
   status      OutcomeStatus @default(PENDING)
   date        DateTime
   program     ProgramType
-  metadata    Json? // Program-specific data
+  metadata    Json? // Program-specific data (patent number, journal, etc.)
   files       String[] // URLs to supporting documents
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+
+  // New fields for better tracking
+  tags        String[] // Keywords for categorization
+  impact      String? // Impact metric (citations, revenue, etc.)
+  externalUrl String? // Link to external resource
+  verifiedBy  String? // Who verified this outcome
+  verifiedAt  DateTime?
+
+  // Relations
+  analytics OutcomeAnalytics[]
+}
+
+// New model for outcome analytics
+model OutcomeAnalytics {
+  id         String    @id @default(cuid())
+  outcomeId  String
+  outcome    Outcome   @relation(fields: [outcomeId], references: [id])
+  views      Int       @default(0)
+  downloads  Int       @default(0)
+  citations  Int       @default(0)
+  shares     Int       @default(0)
+  lastViewed DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([outcomeId])
+}
+
+// New model for achievement milestones
+model Achievement {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id])
+  type        String // 'patent_milestone', 'paper_milestone', etc.
+  title       String
+  description String?
+  date        DateTime
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// New model for analytics dashboards
+model Dashboard {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  config      Json // Dashboard configuration
+  createdBy   String
+  user        User     @relation(fields: [createdBy], references: [id])
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Student Dashboard Stats
+model DashboardStats {
+  id            String    @id @default(cuid())
+  studentId     String
+  student       Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  totalSessions Int       @default(0)
+  totalProgress Int       @default(0)
+  currentStreak Int       @default(0)
+  maxStreak     Int       @default(0)
+  lastActivity  DateTime?
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([studentId])
+}
+
+// New model for saved analytics reports
+model SavedReport {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  type        String // 'outcome', 'progress', 'custom'
+  config      Json // Report configuration
+  data        Json? // Cached report data
+  createdBy   String
+  user        User      @relation(fields: [createdBy], references: [id])
+  schedule    String? // Cron expression for scheduled reports
+  lastRunAt   DateTime?
+  nextRunAt   DateTime?
+  recipients  String[] // Email recipients
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 // Notifications
@@ -455,6 +644,16 @@ model TagAssignment {
   assignedBy String?
 
   @@unique([tagId, entityId, entityType])
+}
+
+// Student Tags (for skills, interests)
+model StudentTag {
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  name      String
+  category  String // 'skill', 'interest', 'achievement'
+  createdAt DateTime @default(now())
 }
 
 model AuditLog {

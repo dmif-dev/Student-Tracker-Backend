@@ -13,6 +13,18 @@ import reportRoutes from './routes/reports.routes.js';
 import mentorRoutes from './routes/mentor.routes.js';
 import sessionRoutes from './routes/session.routes.js';
 import documentRoutes from './routes/document.routes.js';
+import outcomeRoutes from './routes/outcome.routes.js';
+import searchRoutes from './routes/search.routes.js';
+
+import dashboardRoutes from './routes/dashboard.routes.js';
+import importRoutes from './routes/import.routes.js';
+import announcementRoutes from './routes/announcement.routes.js';
+import activityRoutes from './routes/activity.routes.js';
+
+import assignmentRoutes from './routes/assignment.routes.js';
+import settingsRoutes from './routes/settings.routes.js';
+import { apiLimiter, authLimiter, uploadLimiter } from './middleware/rate-limit.middleware.js';
+import { CronService } from './services/cron.service.js';
 
 // Remove authentication middleware for testing
 // import { authenticate } from './middleware/auth.middleware.js';
@@ -23,6 +35,9 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 4000;
+
+const cronService = new CronService();
+cronService.start();
 
 // Middleware
 app.use(helmet({
@@ -43,6 +58,21 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/mentors', mentorRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/outcomes', outcomeRoutes);
+app.use('/api/search', searchRoutes);
+
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/import', importRoutes);
+app.use('/api/announcements', announcementRoutes);
+app.use('/api/activities', activityRoutes);
+
+app.use('/api/assignments', assignmentRoutes);
+app.use('/api/settings', settingsRoutes);
+
+// Apply rate limiting
+app.use('/api/auth', authLimiter);
+app.use('/api/upload', uploadLimiter);
+app.use('/api', apiLimiter);
 
 // Serve uploaded files statically
 app.use('/uploads', express.static('uploads'));
@@ -73,6 +103,12 @@ app.listen(port, () => {
   console.log(`📊 Sessions API: http://localhost:${port}/api/sessions`);
   console.log(`📊 Documents API: http://localhost:${port}/api/documents`);
   console.log(`📊 Uploads: http://localhost:${port}/uploads`);
+  console.log(`📊 Outcomes API: http://localhost:${port}/api/outcomes`);
+  console.log(`📊 Search API: http://localhost:${port}/api/search`);
+  console.log(`📊 Dashboard API: http://localhost:${port}/api/dashboard`);
+  console.log(`📊 Import API: http://localhost:${port}/api/import`);
+  console.log(`📊 Announcements API: http://localhost:${port}/api/announcements`);
+  console.log(`📊 Activity API: http://localhost:${port}/api/activities`);
 });
 
 export default app;

@@ -1,3 +1,4 @@
+
 -- CreateTable
 CREATE TABLE "ScheduledReport" (
     "id" TEXT NOT NULL,
