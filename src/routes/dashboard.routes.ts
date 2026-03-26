@@ -1,8 +1,8 @@
 // backend/src/routes/dashboard.routes.ts
 import { Router } from 'express';
 import { DashboardService } from '../services/dashboard.service.js';
-import { authenticate } from '../middleware/auth.middleware.js';
-import { AuthRequest } from '../middleware/auth.middleware.js';
+import { authenticate } from '../middleware/auth.js';
+import { AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 const dashboardService = new DashboardService();

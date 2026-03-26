@@ -1,7 +1,7 @@
 // backend/src/controllers/outcome.controller.ts
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { AuthRequest } from '../middleware/auth.middleware.js';
+import { AuthRequest } from '../middleware/auth.js';
 import { OutcomeService } from '../services/outcome.service.js';
 import { AnalyticsService } from '../services/analytics.service.js';
 
@@ -26,7 +26,7 @@ export class OutcomeController {
       }
 
       // Check permissions
-      const canCreate = 
+      const canCreate =
         req.user?.role === 'ADMIN' ||
         (req.user?.role === 'MENTOR' && student.mentorId === req.user.mentor?.id);
 
@@ -73,7 +73,7 @@ export class OutcomeController {
       }
 
       // Check access
-      const canAccess = 
+      const canAccess =
         req.user?.role === 'ADMIN' ||
         (req.user?.role === 'MENTOR' && outcome.mentorId === req.user.mentor?.id) ||
         (req.user?.role === 'STUDENT' && outcome.studentId === req.user.student?.id);
@@ -104,7 +104,7 @@ export class OutcomeController {
       }
 
       // Check permissions
-      const canUpdate = 
+      const canUpdate =
         req.user?.role === 'ADMIN' ||
         (req.user?.role === 'MENTOR' && existingOutcome.mentorId === req.user.mentor?.id);
 
@@ -133,7 +133,7 @@ export class OutcomeController {
       }
 
       // Check permissions
-      const canDelete = 
+      const canDelete =
         req.user?.role === 'ADMIN' ||
         (req.user?.role === 'MENTOR' && existingOutcome.mentorId === req.user.mentor?.id);
 
@@ -156,7 +156,7 @@ export class OutcomeController {
       const { studentId } = req.params;
 
       // Check access
-      const canAccess = 
+      const canAccess =
         req.user?.role === 'ADMIN' ||
         (req.user?.role === 'MENTOR' && req.user.mentor?.assignedStudents?.some((s: any) => s.id === studentId)) ||
         (req.user?.role === 'STUDENT' && req.user.student?.id === studentId);
@@ -276,7 +276,7 @@ export class OutcomeController {
 
       if (format === 'csv') {
         const csvRows = ['Title,Type,Status,Student,Mentor,Date'];
-        
+
         outcomes.forEach((o: any) => {
           csvRows.push(
             `"${o.title}",${o.type},${o.status},"${o.student?.name || ''}","${o.mentor?.name || ''}",${o.date.toISOString().split('T')[0]}`
@@ -306,7 +306,7 @@ export class OutcomeController {
       }
 
       const results = await prisma.$transaction(
-        outcomes.map((data: any) => 
+        outcomes.map((data: any) =>
           prisma.outcome.create({
             data: {
               ...data,

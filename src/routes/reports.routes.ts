@@ -1,7 +1,7 @@
 // backend/src/routes/reports.routes.ts
 import { Router } from 'express';
 import { ReportController } from '../controllers/report.controller.js';
-import { authenticate, authorize } from '../middleware/auth.middleware.js';
+import { authenticate, authorize } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.middleware.js';
 import { reportValidator, scheduleValidator } from '../validators/report.validator.js';
 

@@ -1,7 +1,7 @@
 // backend/src/controllers/assignment.controller.ts
 import { Response } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { AuthRequest } from '../middleware/auth.middleware.js';
+import { AuthRequest } from '../middleware/auth.js';
 
 export class AssignmentController {
   async createAssignment(req: AuthRequest, res: Response) {

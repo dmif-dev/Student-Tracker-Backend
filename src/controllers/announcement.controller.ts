@@ -1,7 +1,7 @@
 // backend/src/controllers/announcement.controller.ts
 import { Response } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { AuthRequest } from '../middleware/auth.middleware.js';
+import { AuthRequest } from '../middleware/auth.js';
 
 export class AnnouncementController {
   async getAll(req: AuthRequest, res: Response) {

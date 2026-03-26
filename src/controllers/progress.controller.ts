@@ -1,7 +1,7 @@
 // backend/src/controllers/progress.controller.ts
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { AuthRequest } from '../middleware/auth.middleware.js';
+import { AuthRequest } from '../middleware/auth.js';
 import { ProgressService } from '../services/progress.service.js';
 import { ExportService } from '../services/export.service.js';
 
@@ -12,7 +12,7 @@ export class ProgressController {
   async createProgress(req: AuthRequest, res: Response) {
     try {
       const progressData = req.body;
-      
+
       // Validate student exists and user has access
       const student = await prisma.student.findUnique({
         where: { id: progressData.studentId },
@@ -74,7 +74,7 @@ export class ProgressController {
       }
 
       const where: any = { studentId };
-      
+
       if (startDate && endDate) {
         where.date = {
           gte: new Date(startDate as string),
@@ -208,7 +208,7 @@ export class ProgressController {
       }
 
       const results = await prisma.$transaction(
-        entries.map(entry => 
+        entries.map(entry =>
           prisma.dailyProgress.create({
             data: {
               ...entry,
@@ -292,7 +292,7 @@ export class ProgressController {
       }
 
       const trends = await progressService.calculateTrends(
-        studentId, 
+        studentId,
         Number(months)
       );
 

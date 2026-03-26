@@ -1,7 +1,7 @@
 // backend/src/routes/search.routes.ts
 import { Router } from 'express';
 import { SearchController } from '../controllers/search.controller.js';
-import { authenticate } from '../middleware/auth.middleware.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = Router();
 const searchController = new SearchController();

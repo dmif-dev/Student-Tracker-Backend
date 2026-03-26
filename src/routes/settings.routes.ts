@@ -1,7 +1,7 @@
 // backend/src/routes/settings.routes.ts
 import { Router } from 'express';
 import { SettingsController } from '../controllers/settings.controller.js';
-import { authenticate, authorize } from '../middleware/auth.middleware.js';
+import { authenticate, authorize } from '../middleware/auth.js';
 
 const router = Router();
 const controller = new SettingsController();

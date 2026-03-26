@@ -1,7 +1,7 @@
 // backend/src/controllers/program.controller.ts
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { AuthRequest } from '../middleware/auth.middleware.js';
+import { AuthRequest } from '../middleware/auth.js';
 import { ProgramService } from '../services/program.service.js';
 
 const programService = new ProgramService();
@@ -10,7 +10,7 @@ export class ProgramController {
   async getAllPrograms(req: AuthRequest, res: Response) {
     try {
       const { includeStats = 'true' } = req.query;
-      
+
       const programs = await prisma.program.findMany({
         include: {
           tracks: includeStats === 'true',
@@ -41,7 +41,7 @@ export class ProgramController {
   async getProgramById(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
-      
+
       const program = await prisma.program.findUnique({
         where: { id },
         include: {
@@ -236,8 +236,8 @@ export class ProgramController {
       });
 
       if (studentCount > 0) {
-        return res.status(400).json({ 
-          error: 'Cannot delete track with enrolled students' 
+        return res.status(400).json({
+          error: 'Cannot delete track with enrolled students'
         });
       }
 

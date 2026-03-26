@@ -2,12 +2,12 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { DocumentController } from '../controllers/document.controller.js';
-import { authenticate, authorize } from '../middleware/auth.middleware.js';
+import { authenticate, authorize } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.middleware.js';
-import { 
-  documentValidator, 
-  folderValidator, 
-  permissionValidator 
+import {
+  documentValidator,
+  folderValidator,
+  permissionValidator
 } from '../validators/document.validator.js';
 
 const router = Router();
@@ -49,8 +49,8 @@ const upload = multer({
 
 // ==================== Document CRUD ====================
 router.post(
-  '/upload', 
-  authenticate, 
+  '/upload',
+  authenticate,
   authorize('ADMIN', 'MENTOR'),
   upload.single('file'),
   validate(documentValidator),

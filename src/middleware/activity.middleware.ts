@@ -1,7 +1,7 @@
 // backend/src/middleware/activity.middleware.ts
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { AuthRequest } from './auth.middleware.js';
+import { AuthRequest } from './auth.js';
 
 export const trackActivity = (action: string) => {
   return async (req: AuthRequest, res: Response, next: NextFunction) => {

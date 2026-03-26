@@ -1,12 +1,12 @@
 // backend/src/routes/outcome.routes.ts
 import { Router } from 'express';
 import { OutcomeController } from '../controllers/outcome.controller.js';
-import { authenticate, authorize } from '../middleware/auth.middleware.js';
+import { authenticate, authorize } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.middleware.js';
-import { 
-  outcomeValidator, 
+import {
+  outcomeValidator,
   outcomeFilterValidator,
-  analyticsRequestValidator 
+  analyticsRequestValidator
 } from '../validators/outcome.validator.js';
 
 const router = Router();

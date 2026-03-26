@@ -1,7 +1,7 @@
 // backend/src/controllers/report.controller.ts
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { AuthRequest } from '../middleware/auth.middleware.js';
+import { AuthRequest } from '../middleware/auth.js';
 import { ReportGenerationService } from '../services/report-generation.service.js';
 import { ExportService } from '../services/export.service.js';
 import path from 'path'; // Add this
@@ -98,7 +98,7 @@ export class ReportController {
       }
 
       // Check permission (admin, mentor of this student, or the student themselves)
-      const canAccess = 
+      const canAccess =
         req.user?.role === 'ADMIN' ||
         (req.user?.role === 'MENTOR' && student.mentorId === req.user.mentor?.id) ||
         (req.user?.role === 'STUDENT' && req.user.student?.id === studentId);
@@ -107,7 +107,7 @@ export class ReportController {
         return res.status(403).json({ error: 'Access denied' });
       }
 
-      const startDate = weekStart 
+      const startDate = weekStart
         ? new Date(weekStart as string)
         : reportService.getCurrentWeekStart();
 
@@ -126,8 +126,8 @@ export class ReportController {
 
       // Validate input
       if (!reportConfig.studentIds || !reportConfig.startDate || !reportConfig.endDate) {
-        return res.status(400).json({ 
-          error: 'studentIds, startDate, and endDate are required' 
+        return res.status(400).json({
+          error: 'studentIds, startDate, and endDate are required'
         });
       }
 
@@ -135,7 +135,7 @@ export class ReportController {
       if (req.user?.role !== 'ADMIN') {
         // For non-admins, verify they have access to each student
         const students = await prisma.student.findMany({
-          where: { 
+          where: {
             id: { in: reportConfig.studentIds },
             ...(req.user?.role === 'MENTOR' ? { mentorId: req.user.mentor?.id } : {})
           }
@@ -187,8 +187,8 @@ export class ReportController {
       }
 
       // Only admin or the student's mentor can delete
-      if (req.user?.role !== 'ADMIN' && 
-          !(req.user?.role === 'MENTOR' && report.student.mentorId === req.user.mentor?.id)) {
+      if (req.user?.role !== 'ADMIN' &&
+        !(req.user?.role === 'MENTOR' && report.student.mentorId === req.user.mentor?.id)) {
         return res.status(403).json({ error: 'Access denied' });
       }
 
@@ -226,7 +226,7 @@ export class ReportController {
       }
 
       // Check access
-      const canAccess = 
+      const canAccess =
         req.user?.role === 'ADMIN' ||
         (req.user?.role === 'MENTOR' && report.student.mentorId === req.user.mentor?.id) ||
         (req.user?.role === 'STUDENT' && req.user.student?.id === report.studentId);
@@ -243,7 +243,7 @@ export class ReportController {
           console.error('Download error:', err);
         }
         // Clean up file after download
-        fs.unlink(filePath, () => {});
+        fs.unlink(filePath, () => { });
       });
     } catch (error) {
       console.error('Export report error:', error);
@@ -257,8 +257,8 @@ export class ReportController {
 
       // Validate required fields
       if (!scheduleData.name || !scheduleData.frequency || !scheduleData.config) {
-        return res.status(400).json({ 
-          error: 'name, frequency, and config are required' 
+        return res.status(400).json({
+          error: 'name, frequency, and config are required'
         });
       }
 
@@ -289,7 +289,7 @@ export class ReportController {
     try {
       // Note: It's scheduledReport (lowercase) not scheduledReport
       const scheduledReports = await prisma.scheduledReport.findMany({
-        where: { 
+        where: {
           ...(req.user?.role !== 'ADMIN' ? { createdBy: req.user?.id } : {})
         },
         orderBy: { nextRunAt: 'asc' }

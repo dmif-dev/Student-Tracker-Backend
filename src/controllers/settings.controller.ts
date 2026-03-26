@@ -1,7 +1,7 @@
 // backend/src/controllers/settings.controller.ts
 import { Response } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { AuthRequest } from '../middleware/auth.middleware.js';
+import { AuthRequest } from '../middleware/auth.js';
 
 export class SettingsController {
   async getPreferences(req: AuthRequest, res: Response) {

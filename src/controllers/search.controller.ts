@@ -1,6 +1,6 @@
 // backend/src/controllers/search.controller.ts
 import { Request, Response } from 'express';
-import { AuthRequest } from '../middleware/auth.middleware.js';
+import { AuthRequest } from '../middleware/auth.js';
 import { SearchService } from '../services/search.service.js';
 import { FilterService } from '../services/filter.service.js';
 

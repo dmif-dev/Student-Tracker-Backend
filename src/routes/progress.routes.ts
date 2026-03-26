@@ -1,7 +1,7 @@
 // backend/src/routes/progress.routes.ts
 import { Router } from 'express';
 import { ProgressController } from '../controllers/progress.controller.js';
-import { authenticate, authorize } from '../middleware/auth.middleware.js';
+import { authenticate, authorize } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.middleware.js';
 import { progressValidator } from '../validators/progress.validator.js';
 

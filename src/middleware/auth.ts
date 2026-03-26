@@ -1,3 +1,4 @@
+// backend/src/middleware/auth.ts
 import { Request, Response, NextFunction } from 'express';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
@@ -8,13 +9,15 @@ const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE
 const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 if (!supabaseUrl || !supabaseKey) {
-  console.warn('Supabase credentials missing in backend environment');
+  console.warn('⚠️ Supabase credentials missing in backend environment');
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export interface AuthRequest extends Request {
   user?: any;
+  student?: any;
+  mentor?: any;
 }
 
 export const authenticate = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -52,7 +55,6 @@ export const authorize = (roles: string[]) => {
 
     const userRole = req.user.user_metadata?.role || 'Student';
 
-    // Admin has complete access (bypass check if role is Admin)
     if (userRole === 'Admin') {
       return next();
     }

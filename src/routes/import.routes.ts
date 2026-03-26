@@ -1,8 +1,8 @@
 // backend/src/routes/import.routes.ts
 import { Router } from 'express';
 import multer from 'multer';
-import { authenticate, authorize } from '../middleware/auth.middleware.js';
-import { AuthRequest } from '../middleware/auth.middleware.js';
+import { authenticate, authorize } from '../middleware/auth.js';
+import { AuthRequest } from '../middleware/auth.js';
 import { ImportService } from '../services/import.service.js';
 
 const router = Router();

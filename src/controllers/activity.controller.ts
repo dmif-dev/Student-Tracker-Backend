@@ -1,7 +1,7 @@
 // backend/src/controllers/activity.controller.ts
 import { Response } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { AuthRequest } from '../middleware/auth.middleware.js';
+import { AuthRequest } from '../middleware/auth.js';
 
 export class ActivityController {
   async getUserActivity(req: AuthRequest, res: Response) {

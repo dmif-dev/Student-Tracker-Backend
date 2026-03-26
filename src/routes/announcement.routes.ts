@@ -1,7 +1,7 @@
 // backend/src/routes/announcement.routes.ts
 import { Router } from 'express';
 import { AnnouncementController } from '../controllers/announcement.controller.js';
-import { authenticate, authorize } from '../middleware/auth.middleware.js';
+import { authenticate, authorize } from '../middleware/auth.js';
 
 const router = Router();
 const controller = new AnnouncementController();

@@ -1,7 +1,7 @@
 // backend/src/controllers/document.controller.ts
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { AuthRequest } from '../middleware/auth.middleware.js';
+import { AuthRequest } from '../middleware/auth.js';
 import { DocumentService } from '../services/document.service.js';
 import path from 'path';
 import fs from 'fs';
@@ -21,15 +21,15 @@ export class DocumentController {
         return res.status(400).json({ error: 'No file uploaded' });
       }
 
-      const { 
-        title, 
-        description, 
-        type, 
-        program, 
-        track, 
-        visibility, 
+      const {
+        title,
+        description,
+        type,
+        program,
+        track,
+        visibility,
         metadata,
-        studentIds 
+        studentIds
       } = req.body;
 
       const mentor = req.user?.mentor;
@@ -84,14 +84,14 @@ export class DocumentController {
 
       // Grant permissions to selected students
       if (studentIds) {
-        const studentIdArray = Array.isArray(studentIds) 
-          ? studentIds 
+        const studentIdArray = Array.isArray(studentIds)
+          ? studentIds
           : JSON.parse(studentIds as string);
-        
+
         await documentService.grantBulkPermissions(
-          document.id, 
-          studentIdArray, 
-          true, 
+          document.id,
+          studentIdArray,
+          true,
           visibility !== 'MENTOR_ONLY'
         );
       }
@@ -294,7 +294,7 @@ export class DocumentController {
       }
 
       const filePath = path.join(__dirname, '../../uploads', path.basename(document.fileUrl));
-      
+
       if (!fs.existsSync(filePath)) {
         return res.status(404).json({ error: 'File not found' });
       }
@@ -348,7 +348,7 @@ export class DocumentController {
       }
 
       const filePath = path.join(__dirname, '../../uploads', path.basename(document.fileUrl));
-      
+
       if (!fs.existsSync(filePath)) {
         return res.status(404).json({ error: 'File not found' });
       }
@@ -460,8 +460,8 @@ export class DocumentController {
         canDownload
       );
 
-      res.json({ 
-        message: `Granted permissions to ${result.count} students` 
+      res.json({
+        message: `Granted permissions to ${result.count} students`
       });
     } catch (error) {
       console.error('Bulk grant permissions error:', error);
@@ -637,9 +637,9 @@ export class DocumentController {
     if (user.role === 'ADMIN') return true;
 
     if (user.role === 'MENTOR') {
-      return document.uploadedById === user.mentor?.id || 
-             document.visibility === 'BOTH' ||
-             document.visibility === 'MENTOR_ONLY';
+      return document.uploadedById === user.mentor?.id ||
+        document.visibility === 'BOTH' ||
+        document.visibility === 'MENTOR_ONLY';
     }
 
     if (user.role === 'STUDENT' && user.student) {
@@ -653,9 +653,9 @@ export class DocumentController {
         }
       });
 
-      return !!permission?.canView || 
-             document.visibility === 'BOTH' ||
-             document.visibility === 'STUDENT_ONLY';
+      return !!permission?.canView ||
+        document.visibility === 'BOTH' ||
+        document.visibility === 'STUDENT_ONLY';
     }
 
     return false;

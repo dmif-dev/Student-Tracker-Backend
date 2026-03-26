@@ -1,12 +1,12 @@
 // backend/src/routes/session.routes.ts
 import { Router } from 'express';
 import { SessionController } from '../controllers/session.controller.js';
-import { authenticate, authorize } from '../middleware/auth.middleware.js';
+import { authenticate, authorize } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.middleware.js';
-import { 
-  sessionValidator, 
-  sessionNoteValidator, 
-  sessionUpdateValidator 
+import {
+  sessionValidator,
+  sessionNoteValidator,
+  sessionUpdateValidator
 } from '../validators/session.validator.js';
 
 const router = Router();

@@ -1,7 +1,7 @@
 // backend/src/controllers/session.controller.ts
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { AuthRequest } from '../middleware/auth.middleware.js';
+import { AuthRequest } from '../middleware/auth.js';
 import { SessionService } from '../services/session.service.js';
 
 const sessionService = new SessionService();
@@ -34,8 +34,8 @@ export class SessionController {
 
       // Check if student has mentor
       if (!student.mentorId && sessionData.mentorId) {
-        return res.status(400).json({ 
-          error: 'Student does not have a mentor assigned' 
+        return res.status(400).json({
+          error: 'Student does not have a mentor assigned'
         });
       }
 
@@ -48,8 +48,8 @@ export class SessionController {
       );
 
       if (!isAvailable) {
-        return res.status(400).json({ 
-          error: 'Mentor is not available at this time' 
+        return res.status(400).json({
+          error: 'Mentor is not available at this time'
         });
       }
 
@@ -162,7 +162,7 @@ export class SessionController {
       }
 
       // Check access rights
-      const canAccess = 
+      const canAccess =
         req.user?.role === 'ADMIN' ||
         (req.user?.role === 'MENTOR' && session.mentorId === req.user.mentor?.id) ||
         (req.user?.role === 'STUDENT' && session.studentId === req.user.student?.id);
@@ -200,7 +200,7 @@ export class SessionController {
       }
 
       // Check access rights (only mentor or admin can update)
-      const canUpdate = 
+      const canUpdate =
         req.user?.role === 'ADMIN' ||
         (req.user?.role === 'MENTOR' && session.mentorId === req.user.mentor?.id);
 
@@ -223,8 +223,8 @@ export class SessionController {
         );
 
         if (!isAvailable) {
-          return res.status(400).json({ 
-            error: 'Mentor is not available at the new time' 
+          return res.status(400).json({
+            error: 'Mentor is not available at the new time'
           });
         }
       }
@@ -250,7 +250,7 @@ export class SessionController {
       // Notify about rescheduling
       if (updates.date || updates.startTime || updates.endTime) {
         const notifications = [];
-        
+
         if (session.student.user.id !== req.user?.id) {
           notifications.push({
             userId: session.student.user.id,
@@ -310,7 +310,7 @@ export class SessionController {
       }
 
       // Check access rights
-      const canCancel = 
+      const canCancel =
         req.user?.role === 'ADMIN' ||
         (req.user?.role === 'MENTOR' && session.mentorId === req.user.mentor?.id) ||
         (req.user?.role === 'STUDENT' && session.studentId === req.user.student?.id);
@@ -327,7 +327,7 @@ export class SessionController {
 
       // Create notifications
       const notifications = [];
-      
+
       if (session.student.user.id !== req.user?.id) {
         notifications.push({
           userId: session.student.user.id,
@@ -386,7 +386,7 @@ export class SessionController {
       }
 
       // Only mentor or admin can add notes
-      const canAddNotes = 
+      const canAddNotes =
         req.user?.role === 'ADMIN' ||
         (req.user?.role === 'MENTOR' && session.mentorId === req.user.mentor?.id);
 
@@ -450,7 +450,7 @@ export class SessionController {
       }
 
       // Check access
-      const canAccess = 
+      const canAccess =
         req.user?.role === 'ADMIN' ||
         (req.user?.role === 'MENTOR' && session.mentorId === req.user.mentor?.id) ||
         (req.user?.role === 'STUDENT' && session.studentId === req.user.student?.id);
@@ -514,14 +514,14 @@ export class SessionController {
       const { startDate, endDate, status } = req.query;
 
       const where: any = { mentorId };
-      
+
       if (startDate && endDate) {
         where.date = {
           gte: new Date(startDate as string),
           lte: new Date(endDate as string)
         };
       }
-      
+
       if (status) {
         where.status = status;
       }
@@ -558,14 +558,14 @@ export class SessionController {
       const { startDate, endDate, status } = req.query;
 
       const where: any = { studentId };
-      
+
       if (startDate && endDate) {
         where.date = {
           gte: new Date(startDate as string),
           lte: new Date(endDate as string)
         };
       }
-      
+
       if (status) {
         where.status = status;
       }
@@ -600,8 +600,8 @@ export class SessionController {
       const { startDate, endDate } = req.query;
 
       if (!startDate || !endDate) {
-        return res.status(400).json({ 
-          error: 'startDate and endDate are required' 
+        return res.status(400).json({
+          error: 'startDate and endDate are required'
         });
       }
 
@@ -716,14 +716,14 @@ export class SessionController {
       const { startDate, endDate, status, limit = 50, offset = 0 } = req.query;
 
       const where: any = {};
-      
+
       if (startDate && endDate) {
         where.date = {
           gte: new Date(startDate as string),
           lte: new Date(endDate as string)
         };
       }
-      
+
       if (status) {
         where.status = status;
       }
