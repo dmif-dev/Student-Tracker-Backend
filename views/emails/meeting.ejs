@@ -1,0 +1,30 @@
+<%- include('_header') %>
+
+<div style="text-align: center; margin-bottom: 24px;">
+    <div style="background-color: #fff7f0; width: 56px; height: 56px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
+        <span style="font-size: 28px; line-height: 56px;">📅</span>
+    </div>
+    <h1 style="font-size: 24px; font-weight: 700; color: #ff6633; margin: 0;">Daily Meeting Sync</h1>
+</div>
+
+<p style="font-size: 16px; color: #334155; line-height: 1.6; margin-bottom: 16px;">Dear <strong><%= data.studentName %></strong>,</p>
+<p style="font-size: 16px; color: #334155; line-height: 1.6; margin-bottom: 24px;">Here is your daily sync reminder and progress reporting link for today.</p>
+
+<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin-bottom: 32px;">
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td style="padding-bottom: 12px; font-size: 14px; color: #64748b; width: 100px;">Meeting Link</td>
+            <td style="padding-bottom: 12px; font-size: 14px; color: #003d7a; width: auto; word-break: break-all;"><a href="<%= data.meetingLink %>" style="color: #003d7a; text-decoration: underline;"><%= data.meetingLink %></a></td>
+        </tr>
+        <tr>
+            <td style="font-size: 14px; color: #64748b;">Remarks</td>
+            <td style="font-size: 15px; font-weight: 600; color: #0f172a;"><%= data.remarks %></td>
+        </tr>
+    </table>
+</div>
+
+<div style="text-align: center; margin-bottom: 32px;">
+    <a href="<%= data.meetingLink %>" style="background-color: #ff6633; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 600; padding: 14px 32px; border-radius: 100px; display: inline-block;">Join Meeting</a>
+</div>
+
+<%- include('_footer') %>
