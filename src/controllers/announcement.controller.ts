@@ -27,6 +27,20 @@ export class AnnouncementController {
     try {
       const { title, content, target, priority, expiresAt } = req.body;
 
+      // Get or create admin profile
+      let adminProfile = await prisma.admin.findUnique({
+        where: { userId: req.user?.id }
+      });
+      
+      if (!adminProfile) {
+        adminProfile = await prisma.admin.create({
+          data: {
+            userId: req.user?.id,
+            name: req.user?.email?.split('@')[0] || 'Admin'
+          }
+        });
+      }
+
       const announcement = await prisma.announcement.create({
         data: {
           title,
@@ -34,7 +48,7 @@ export class AnnouncementController {
           target,
           priority,
           expiresAt: expiresAt ? new Date(expiresAt) : null,
-          createdBy: req.user?.adminProfile?.id || ''
+          createdBy: adminProfile.id  // Fix: Use adminProfile.id instead of req.user?.adminProfile?.id
         }
       });
 

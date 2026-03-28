@@ -7,8 +7,8 @@ const router = Router();
 const controller = new AnnouncementController();
 
 router.get('/', authenticate, controller.getAll);
-router.post('/', authenticate, authorize('ADMIN'), controller.create);
-router.put('/:id', authenticate, authorize('ADMIN'), controller.update);
-router.delete('/:id', authenticate, authorize('ADMIN'), controller.delete);
+router.post('/', authenticate, authorize('ADMIN', 'MENTOR'), controller.create);
+router.put('/:id', authenticate, authorize('ADMIN', 'MENTOR'), controller.update);
+router.delete('/:id', authenticate, authorize('ADMIN', 'MENTOR'), controller.delete);
 
 export default router;

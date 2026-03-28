@@ -23,8 +23,12 @@ export class AssignmentController {
       });
 
       // Create notifications for students
+      const mappedProgramName = (program as string).replace('_', '-');
       const students = await prisma.student.findMany({
-        where: { program: program as any, track: track || undefined },
+        where: { 
+          program: { name: mappedProgramName },
+          ...(track ? { track: { name: track as string } } : {})
+        },
         include: { user: true }
       });
 
@@ -43,9 +47,9 @@ export class AssignmentController {
       }
 
       res.status(201).json(assignment);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Create assignment error:', error);
-      res.status(500).json({ error: 'Failed to create assignment' });
+      res.status(500).json({ error: `Failed to create assignment: ${error.message}` });
     }
   }
 
@@ -92,7 +96,8 @@ export class AssignmentController {
       const { content, files } = req.body;
 
       const assignment = await prisma.assignment.findUnique({
-        where: { id }
+        where: { id },
+        include: { mentor: true }
       });
 
       if (!assignment) {
@@ -127,7 +132,7 @@ export class AssignmentController {
       // Notify mentor
       await prisma.notification.create({
         data: {
-          userId: assignment.mentorId,
+          userId: assignment.mentor.userId,
           type: 'info',
           category: 'assignment',
           title: 'Assignment Submitted',
@@ -138,9 +143,9 @@ export class AssignmentController {
       });
 
       res.json(submission);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Submit assignment error:', error);
-      res.status(500).json({ error: 'Failed to submit assignment' });
+      res.status(500).json({ error: `Failed to submit assignment: ${error.message}` });
     }
   }
 

@@ -4,7 +4,7 @@ import { authenticate, authorize, AuthRequest } from '../middleware/auth.js';
 const router = Router();
 
 // Apply admin protection to all routes in this file
-router.use(authenticate, authorize(['Admin']));
+router.use(authenticate, authorize('Admin'));
 
 router.get('/all-users', (req: AuthRequest, res) => {
   res.json({

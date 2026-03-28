@@ -4,7 +4,7 @@ import { authenticate, authorize, AuthRequest } from '../middleware/auth.js';
 const router = Router();
 
 // Apply Student or Admin protection
-router.use(authenticate, authorize(['Student']));
+router.use(authenticate, authorize('Student'));
 
 router.get('/my-progress', (req: AuthRequest, res) => {
   res.json({

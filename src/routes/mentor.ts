@@ -33,7 +33,7 @@ const router = Router();
 const mentorController = new MentorController();
 
 // ==================== All mentor routes require authentication and MENTOR role ====================
-router.use(authenticate, authorize(['Mentor', 'Admin']));
+router.use(authenticate, authorize('Mentor', 'Admin'));
 
 // ==================== Profile & Account ====================
 router.get('/profile', mentorController.getMentorById);
@@ -44,6 +44,8 @@ router.get('/stats', mentorController.getMentorStats);
 router.get('/students', mentorController.getAssignedStudents);
 router.get('/students/:studentId', mentorController.getStudentById);
 router.post('/students/:studentId/notes', mentorController.addStudentNotes);
+router.post('/students/:studentId/assign', authorize('ADMIN'), mentorController.assignStudent);
+router.delete('/students/:studentId/unassign', authorize('ADMIN'), mentorController.unassignStudent);
 
 // ==================== Session Management ====================
 router.get('/sessions', mentorController.getMentorSchedule);
@@ -60,6 +62,7 @@ router.post('/availability', validate(availabilityValidator), mentorController.a
 router.put('/availability/:id', validate(availabilityValidator), mentorController.updateAvailability);
 router.delete('/availability/:id', mentorController.deleteAvailability);
 router.post('/availability/bulk', mentorController.bulkAddAvailability);
+router.get('/check-availability', mentorController.checkAvailability);
 
 // ==================== Document Management ====================
 router.get('/documents', mentorController.getDocuments);

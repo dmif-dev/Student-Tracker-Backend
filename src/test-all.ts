@@ -10,212 +10,476 @@ const __dirname = path.dirname(__filename);
 
 const API_URL = 'http://localhost:4000/api';
 let token = '';
-let studentId = '';
-let mentorId = '';
-let announcementId = '';
+let adminToken = 'eyJhbGciOiJFUzI1NiIsImtpZCI6IjgxYjJkNTIwLTc4YzktNDU4MC05ODZhLTU3MzNmODE1NmZkZSIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2xjcnBqZ3p5Y3l6bWVuYXN1aGp6LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJiMDU1M2ZjOS03MTM1LTRhM2YtYmZmOC1mOTFmZTFmN2UxODIiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc0NjE4NDExLCJpYXQiOjE3NzQ2MTQ4MTEsImVtYWlsIjoiYWRtaW5AZG1pZi5vcmciLCJwaG9uZSI6IiIsImFwcF9tZXRhZGF0YSI6eyJwcm92aWRlciI6ImVtYWlsIiwicHJvdmlkZXJzIjpbImVtYWlsIl19LCJ1c2VyX21ldGFkYXRhIjp7ImVtYWlsX3ZlcmlmaWVkIjp0cnVlfSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc3NDYxNDgxMX1dLCJzZXNzaW9uX2lkIjoiZTE0NGZmYTgtZWRhYS00ZDdmLTgxOGQtMDRlNmRiYTc4ZTEyIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.pS904fN5ZwrIsADTQfbQo_eYyYZF_xFkC5uUB86iJ3EAcdSTxyDWHnxYkj0s-WUP8wAZERgSU6xNvgYqJ27CpA';
+let mentorToken = 'eyJhbGciOiJFUzI1NiIsImtpZCI6IjgxYjJkNTIwLTc4YzktNDU4MC05ODZhLTU3MzNmODE1NmZkZSIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2xjcnBqZ3p5Y3l6bWVuYXN1aGp6LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiIyYTI0YmRkMi1lNDkyLTQ0OWItODgyZC0zN2Y1MWM5MTI1ZWMiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc0NjE4NTAwLCJpYXQiOjE3NzQ2MTQ5MDAsImVtYWlsIjoic21pdGhAZG1pZi5vcmciLCJwaG9uZSI6IiIsImFwcF9tZXRhZGF0YSI6eyJwcm92aWRlciI6ImVtYWlsIiwicHJvdmlkZXJzIjpbImVtYWlsIl19LCJ1c2VyX21ldGFkYXRhIjp7ImVtYWlsX3ZlcmlmaWVkIjp0cnVlfSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc3NDYxNDkwMH1dLCJzZXNzaW9uX2lkIjoiOTcxYTc1OGYtZWRhMC00ZGUyLWI1MGItZGMyOGJhN2FlYTJhIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.egtZgGwbbSgJ7zh4-txZ3ns8qDQBC5k0r22UPTdmetkH5gHg2jGCqpXG_J3fCl6Ar9ZSR286pZ-g3J5XoccArg';
+let studentToken = 'eyJhbGciOiJFUzI1NiIsImtpZCI6IjgxYjJkNTIwLTc4YzktNDU4MC05ODZhLTU3MzNmODE1NmZkZSIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2xjcnBqZ3p5Y3l6bWVuYXN1aGp6LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJjOTNhZDNhOC1lZWU0LTRlYTMtYTFmZC02MDVhY2Q1YWIxYWIiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc0NjE4NjQ4LCJpYXQiOjE3NzQ2MTUwNDgsImVtYWlsIjoiam9obi5kb2VAZG1pZnN0dWRlbnQub3JnIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbF92ZXJpZmllZCI6dHJ1ZX0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3NzQ2MTUwNDh9XSwic2Vzc2lvbl9pZCI6IjgyY2Y3MGU0LWJhOGYtNDM1YS1iZmMwLTVjY2NlNWU4ZDYwZSIsImlzX2Fub255bW91cyI6ZmFsc2V9.mBPWVdAO9Fxqe0k3MK7MRTkqU_nq9sUsTVl9LwVKJXMatYrMbxWvrhZS1b1CT029cbcK0XgUQvn8UW0Si9hpcw';
 
-// Get IDs from your database - you can run prisma studio to get these
-// For now, we'll fetch them dynamically
+// Store IDs for testing
+let programId = 'cmn99ayvv00018o936gynjabs';
+let mentorId = 'cmn99bblu000m8o93fjigq77i';
+let studentId = 'cmn99beo5000p8o93d7cbhn89';
+let assignmentId = 'cmn99dt8i001fro93u1m8i84e';
+let submissionId = 'cmn99dusb001hro93y15gncqt';
+
+// Colors for console output
+const colors = {
+  reset: '\x1b[0m',
+  green: '\x1b[32m',
+  red: '\x1b[31m',
+  yellow: '\x1b[33m',
+  blue: '\x1b[36m',
+};
+
+function logSuccess(msg: string) {
+  console.log(`${colors.green}✅ ${msg}${colors.reset}`);
+}
+
+function logError(msg: string) {
+  console.log(`${colors.red}❌ ${msg}${colors.reset}`);
+}
+
+function logInfo(msg: string) {
+  console.log(`${colors.blue}📌 ${msg}${colors.reset}`);
+}
+
+function logWarning(msg: string) {
+  console.log(`${colors.yellow}⚠️ ${msg}${colors.reset}`);
+}
+
+function logSection(title: string) {
+  console.log(`\n${colors.yellow}${'='.repeat(60)}${colors.reset}`);
+  console.log(`${colors.yellow}📋 ${title}${colors.reset}`);
+  console.log(`${colors.yellow}${'='.repeat(60)}${colors.reset}\n`);
+}
 
 async function login() {
   try {
-    const response = await axios.post(`${API_URL}/auth/login`, {
+    // Admin login
+    const adminRes = await axios.post(`${API_URL}/auth/login`, {
       email: 'admin@dmif.org',
       password: 'admin123'
     });
-    token = response.data.token;
-    console.log('✅ Login successful');
+    adminToken = adminRes.data.token;
+    logSuccess('Admin login successful');
+
+    // Mentor login
+    const mentorRes = await axios.post(`${API_URL}/auth/login`, {
+      email: 'smith@dmif.org',
+      password: 'mentor123'
+    });
+    mentorToken = mentorRes.data.token;
+    logSuccess('Mentor login successful');
+
+    // Student login
+    const studentRes = await axios.post(`${API_URL}/auth/login`, {
+      email: 'john.doe@dmifstudent.org',
+      password: 'student123'
+    });
+    studentToken = studentRes.data.token;
+    logSuccess('Student login successful');
+
     return true;
   } catch (error) {
-    console.log('⚠️ Auth not available - check if auth is implemented');
-    console.log('Continuing without token...');
-    token = 'test-token';
+    logError('Login failed - make sure server is running');
+    console.error(error);
     return false;
   }
 }
 
-async function getTestIds() {
+// ==================== Program Tests ====================
+async function testPrograms() {
+  logSection('PROGRAMS API');
+
   try {
-    // Get first student
-    const studentsRes = await axios.get(`${API_URL}/students`, {
-      headers: { Authorization: `Bearer ${token}` }
-    }).catch(() => ({ data: [] }));
-    
-    if (studentsRes.data.length > 0) {
-      studentId = studentsRes.data[0].id;
-      console.log('✅ Found student ID:', studentId);
+    // Get all programs
+    const res = await axios.get(`${API_URL}/programs`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    logSuccess(`Found ${res.data.length} programs`);
+    if (res.data.length > 0) {
+      programId = res.data[0].id;
+      logInfo(`First program ID: ${programId}`);
     }
 
-    // Get first mentor
-    const mentorsRes = await axios.get(`${API_URL}/mentors`, {
-      headers: { Authorization: `Bearer ${token}` }
-    }).catch(() => ({ data: [] }));
-    
-    if (mentorsRes.data.length > 0) {
-      mentorId = mentorsRes.data[0].id;
-      console.log('✅ Found mentor ID:', mentorId);
+    // Get program by ID
+    if (programId) {
+      const programRes = await axios.get(`${API_URL}/programs/${programId}`, {
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+      logSuccess(`Program details: ${programRes.data.name}`);
     }
-  } catch (error) {
-    console.log('⚠️ Could not fetch IDs, using placeholder values');
+
+    // Get program metrics
+    if (programId) {
+      const metricsRes = await axios.get(`${API_URL}/programs/${programId}/metrics`, {
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+      logSuccess(`Program metrics - Students: ${metricsRes.data.totalStudents}`);
+    }
+  } catch (error: any) {
+    logError(`Programs test failed: ${error.response?.data?.error || error.message}`);
   }
 }
 
 // ==================== Dashboard Tests ====================
+async function testDashboards() {
+  logSection('DASHBOARD API');
 
-async function testStudentDashboard() {
-  if (!studentId) {
-    console.log('\n⚠️ Skipping student dashboard test - no student ID found');
-    return;
-  }
-  
   try {
-    console.log('\n📊 Testing: Student Dashboard');
-    const response = await axios.get(`${API_URL}/dashboard/student`, {
-      headers: { Authorization: `Bearer ${token}` }
+    // Student Dashboard
+    const studentDash = await axios.get(`${API_URL}/dashboard/student`, {
+      headers: { Authorization: `Bearer ${studentToken}` }
     });
-    console.log('✅ Student dashboard stats:', response.data.stats);
-    console.log('   Profile:', response.data.profile);
-  } catch (error: any) {
-    console.log('❌ Student dashboard failed:', error.response?.data || error.message);
-  }
-}
+    logSuccess(`Student Dashboard - Progress: ${studentDash.data.stats.totalProgressEntries}`);
+    logInfo(`Profile: ${studentDash.data.profile.name}`);
 
-async function testMentorDashboard() {
-  if (!mentorId) {
-    console.log('\n⚠️ Skipping mentor dashboard test - no mentor ID found');
-    return;
-  }
-  
-  try {
-    console.log('\n📊 Testing: Mentor Dashboard');
-    const response = await axios.get(`${API_URL}/dashboard/mentor`, {
-      headers: { Authorization: `Bearer ${token}` }
+    // Mentor Dashboard
+    const mentorDash = await axios.get(`${API_URL}/dashboard/mentor`, {
+      headers: { Authorization: `Bearer ${mentorToken}` }
     });
-    console.log('✅ Mentor dashboard stats:', response.data.stats);
-    console.log('   Profile:', response.data.profile);
-  } catch (error: any) {
-    console.log('❌ Mentor dashboard failed:', error.response?.data || error.message);
-  }
-}
+    logSuccess(`Mentor Dashboard - Students: ${mentorDash.data.stats.totalStudents}`);
 
-async function testAdminDashboard() {
-  try {
-    console.log('\n📊 Testing: Admin Dashboard');
-    const response = await axios.get(`${API_URL}/dashboard/admin`, {
-      headers: { Authorization: `Bearer ${token}` }
+    // Admin Dashboard
+    const adminDash = await axios.get(`${API_URL}/dashboard/admin`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
     });
-    console.log('✅ Admin dashboard stats:', response.data.stats);
-    console.log('   Program distribution:', response.data.programDistribution);
+    logSuccess(`Admin Dashboard - Total Students: ${adminDash.data.stats.totalStudents}`);
   } catch (error: any) {
-    console.log('❌ Admin dashboard failed:', error.response?.data || error.message);
+    logError(`Dashboard test failed: ${error.response?.data?.error || error.message}`);
   }
 }
 
 // ==================== Announcement Tests ====================
+async function testAnnouncements() {
+  logSection('ANNOUNCEMENTS API');
 
-async function testCreateAnnouncement() {
   try {
-    console.log('\n📢 Testing: Create Announcement');
-    const response = await axios.post(`${API_URL}/announcements`, {
+    // Create announcement
+    const createRes = await axios.post(`${API_URL}/announcements`, {
       title: 'Test Announcement',
-      content: 'This is a test announcement from the API test suite.',
+      content: 'This is a test announcement from the test suite',
       target: 'all',
-      priority: 'medium',
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    announcementId = response.data.id;
-    console.log('✅ Announcement created:', response.data.title);
-  } catch (error: any) {
-    console.log('❌ Create announcement failed:', error.response?.data || error.message);
-  }
-}
-
-async function testGetAnnouncements() {
-  try {
-    console.log('\n📢 Testing: Get Announcements');
-    const response = await axios.get(`${API_URL}/announcements`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    console.log('✅ Found', response.data.length, 'announcements');
-  } catch (error: any) {
-    console.log('❌ Get announcements failed:', error.response?.data || error.message);
-  }
-}
-
-async function testUpdateAnnouncement() {
-  if (!announcementId) return;
-  
-  try {
-    console.log('\n📢 Testing: Update Announcement');
-    const response = await axios.put(`${API_URL}/announcements/${announcementId}`, {
-      title: 'Updated Test Announcement',
       priority: 'high'
     }, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${adminToken}` }
     });
-    console.log('✅ Announcement updated');
+    logSuccess(`Announcement created: ${createRes.data.title}`);
+
+    // Get all announcements
+    const getRes = await axios.get(`${API_URL}/announcements`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    logSuccess(`Found ${getRes.data.length} announcements`);
+
+    // Update announcement
+    if (createRes.data.id) {
+      await axios.put(`${API_URL}/announcements/${createRes.data.id}`, {
+        title: 'Updated Test Announcement'
+      }, {
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+      logSuccess('Announcement updated');
+
+      // Delete announcement
+      await axios.delete(`${API_URL}/announcements/${createRes.data.id}`, {
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+      logSuccess('Announcement deleted');
+    }
   } catch (error: any) {
-    console.log('❌ Update announcement failed:', error.response?.data || error.message);
+    logError(`Announcement test failed: ${error.response?.data?.error || error.message}`);
   }
 }
 
-async function testDeleteAnnouncement() {
-  if (!announcementId) return;
-  
+// ==================== Progress Tests ====================
+async function testProgress() {
+  logSection('PROGRESS API');
+
   try {
-    console.log('\n📢 Testing: Delete Announcement');
-    await axios.delete(`${API_URL}/announcements/${announcementId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    console.log('✅ Announcement deleted');
+    if (studentId) {
+      // Get student progress
+      const progressRes = await axios.get(`${API_URL}/progress/student/${studentId}`, {
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+      logSuccess(`Found ${progressRes.data.data.length} progress entries`);
+
+      // Get progress stats
+      const statsRes = await axios.get(`${API_URL}/progress/stats/${studentId}`, {
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+      logSuccess(`Progress Stats - Total Entries: ${statsRes.data.totalEntries}`);
+
+      // Get progress trends
+      const trendsRes = await axios.get(`${API_URL}/progress/trends/${studentId}?months=3`, {
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+      logSuccess(`Progress Trends: ${trendsRes.data.length} months of data`);
+    }
   } catch (error: any) {
-    console.log('❌ Delete announcement failed:', error.response?.data || error.message);
+    logError(`Progress test failed: ${error.response?.data?.error || error.message}`);
+  }
+}
+
+// ==================== Assignment Tests ====================
+async function testAssignments() {
+  logSection('ASSIGNMENTS API');
+
+  try {
+    // Get a document to link to the assignment
+    let docId = 'test-doc-id';
+    const docs = await axios.get(`${API_URL}/documents`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    if (docs.data && docs.data.length > 0) {
+      docId = docs.data[0].id;
+    }
+
+    // Create an assignment (mentor)
+    const createRes = await axios.post(`${API_URL}/assignments`, {
+      title: 'Test Assignment',
+      description: 'This is a test assignment for the test suite',
+      documentId: docId,
+      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      points: 100,
+      program: 'G_CMP'
+    }, {
+      headers: { Authorization: `Bearer ${mentorToken}` }
+    });
+    
+    if (createRes.data) {
+      assignmentId = createRes.data.id;
+      logSuccess(`Assignment created: ${createRes.data.title}`);
+    }
+
+    // Get assignments
+    const getRes = await axios.get(`${API_URL}/assignments`, {
+      headers: { Authorization: `Bearer ${studentToken}` }
+    });
+    logSuccess(`Found ${getRes.data.length} assignments`);
+
+    // Submit assignment (student)
+    if (assignmentId) {
+      const submitRes = await axios.post(`${API_URL}/assignments/${assignmentId}/submit`, {
+        content: 'This is my submission content',
+        files: ['submission.pdf']
+      }, {
+        headers: { Authorization: `Bearer ${studentToken}` }
+      });
+      logSuccess(`Assignment submitted: ${submitRes.data.status}`);
+      submissionId = submitRes.data.id;
+    }
+
+    // Get submissions (mentor)
+    if (assignmentId) {
+      const submissionsRes = await axios.get(`${API_URL}/assignments/${assignmentId}/submissions`, {
+        headers: { Authorization: `Bearer ${mentorToken}` }
+      });
+      logSuccess(`Found ${submissionsRes.data.length} submissions`);
+    }
+
+    // Grade submission
+    if (submissionId) {
+      const gradeRes = await axios.put(`${API_URL}/assignments/submissions/${submissionId}/grade`, {
+        grade: 85,
+        feedback: 'Good work! Could improve on code quality.'
+      }, {
+        headers: { Authorization: `Bearer ${mentorToken}` }
+      });
+      logSuccess(`Submission graded: ${gradeRes.data.grade}/100`);
+    }
+  } catch (error: any) {
+    logError(`Assignment test failed: ${error.response?.data?.error || error.message}`);
+  }
+}
+
+// ==================== Session Tests ====================
+async function testSessions() {
+  logSection('SESSIONS API');
+
+  try {
+    // Get upcoming sessions
+    const upcomingRes = await axios.get(`${API_URL}/sessions/upcoming`, {
+      headers: { Authorization: `Bearer ${studentToken}` }
+    });
+    logSuccess(`Found ${upcomingRes.data.length} upcoming sessions`);
+
+    // Get session history
+    const historyRes = await axios.get(`${API_URL}/sessions/history`, {
+      headers: { Authorization: `Bearer ${studentToken}` }
+    });
+    logSuccess(`Found ${historyRes.data.data.length} past sessions`);
+  } catch (error: any) {
+    logError(`Session test failed: ${error.response?.data?.error || error.message}`);
+  }
+}
+
+// ==================== Document Tests ====================
+async function testDocuments() {
+  logSection('DOCUMENTS API');
+
+  try {
+    // Get documents
+    const docsRes = await axios.get(`${API_URL}/documents`, {
+      headers: { Authorization: `Bearer ${studentToken}` }
+    });
+    logSuccess(`Found ${docsRes.data.length} documents`);
+
+    // Get document stats
+    const statsRes = await axios.get(`${API_URL}/documents/stats`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    logSuccess(`Total documents: ${statsRes.data.total}`);
+  } catch (error: any) {
+    logError(`Document test failed: ${error.response?.data?.error || error.message}`);
+  }
+}
+
+// ==================== Outcome Tests ====================
+async function testOutcomes() {
+  logSection('OUTCOMES API');
+
+  try {
+    // Get outcomes
+    const outcomesRes = await axios.get(`${API_URL}/outcomes`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    logSuccess(`Found ${outcomesRes.data.length} outcomes`);
+
+    // Get student outcome summary
+    if (studentId) {
+      const summaryRes = await axios.get(`${API_URL}/outcomes/student/${studentId}/summary`, {
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+      logSuccess(`Student outcomes total: ${summaryRes.data.total}`);
+      logInfo(`Outcomes by type: ${JSON.stringify(summaryRes.data.byType)}`);
+    }
+
+    // Get program outcome summary
+    if (programId) {
+      const programRes = await axios.get(`${API_URL}/outcomes/program/G_CMP/summary`, {
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+      logSuccess(`Program outcomes total: ${programRes.data.total}`);
+    }
+
+    // Get outcome trends
+    const trendsRes = await axios.get(`${API_URL}/outcomes/analytics/trends`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    logSuccess(`Outcome trends period: ${trendsRes.data.period}`);
+  } catch (error: any) {
+    logError(`Outcome test failed: ${error.response?.data?.error || error.message}`);
+  }
+}
+
+// ==================== Search Tests ====================
+async function testSearch() {
+  logSection('SEARCH API');
+
+  try {
+    // Full text search
+    const searchRes = await axios.get(`${API_URL}/search?q=AI`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    logSuccess(`Search found ${searchRes.data.metadata.total} results`);
+    logInfo(`Search time: ${searchRes.data.metadata.searchTime}ms`);
+
+    // Search suggestions
+    const suggestionsRes = await axios.get(`${API_URL}/search/suggestions?q=AI`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    logSuccess(`Found ${suggestionsRes.data.length} suggestions`);
+  } catch (error: any) {
+    logError(`Search test failed: ${error.response?.data?.error || error.message}`);
   }
 }
 
 // ==================== Activity Tests ====================
+async function testActivities() {
+  logSection('ACTIVITY API');
 
-async function testGetUserActivity() {
   try {
-    console.log('\n📋 Testing: Get User Activity');
-    const response = await axios.get(`${API_URL}/activities/me`, {
-      headers: { Authorization: `Bearer ${token}` }
+    // Get user activity
+    const userActivity = await axios.get(`${API_URL}/activities/me`, {
+      headers: { Authorization: `Bearer ${studentToken}` }
     });
-    console.log('✅ Found', response.data.data.length, 'activities');
-    if (response.data.data.length > 0) {
-      console.log('   Latest activity:', response.data.data[0].action);
+    logSuccess(`Found ${userActivity.data.data.length} user activities`);
+
+    // Get system activity (admin only)
+    const systemActivity = await axios.get(`${API_URL}/activities/system?limit=5`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    logSuccess(`Found ${systemActivity.data.data.length} system activities`);
+  } catch (error: any) {
+    logError(`Activity test failed: ${error.response?.data?.error || error.message}`);
+  }
+}
+
+// ==================== Settings Tests ====================
+async function testSettings() {
+  logSection('SETTINGS API');
+
+  try {
+    // Get preferences
+    const prefsRes = await axios.get(`${API_URL}/settings/preferences`, {
+      headers: { Authorization: `Bearer ${studentToken}` }
+    });
+    logSuccess(`Preferences fetched: ${JSON.stringify(prefsRes.data)}`);
+
+    // Update preferences
+    const updateRes = await axios.put(`${API_URL}/settings/preferences`, {
+      preferences: { theme: 'dark', notifications: true }
+    }, {
+      headers: { Authorization: `Bearer ${studentToken}` }
+    });
+    logSuccess(`Preferences updated: ${JSON.stringify(updateRes.data)}`);
+
+    // Update profile
+    const profileRes = await axios.put(`${API_URL}/settings/profile`, {
+      name: 'John Doe Test',
+      phone: '+1234567890'
+    }, {
+      headers: { Authorization: `Bearer ${studentToken}` }
+    });
+    logSuccess('Profile updated successfully');
+  } catch (error: any) {
+    logError(`Settings test failed: ${error.response?.data?.error || error.message}`);
+  }
+}
+
+// ==================== Report Tests ====================
+async function testReports() {
+  logSection('REPORTS API');
+
+  try {
+    // Get weekly reports
+    const weeklyRes = await axios.get(`${API_URL}/reports/weekly/student/${studentId}`, {
+      headers: { Authorization: `Bearer ${studentToken}` }
+    });
+    logSuccess(`Found ${weeklyRes.data.data.length} weekly reports`);
+
+    // Generate program report
+    if (programId) {
+      const programReport = await axios.get(`${API_URL}/reports/generate/program/${programId}`, {
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+      logSuccess(`Program report generated - Students: ${programReport.data.summary.totalStudents}`);
     }
   } catch (error: any) {
-    console.log('❌ Get user activity failed:', error.response?.data || error.message);
+    logError(`Report test failed: ${error.response?.data?.error || error.message}`);
   }
 }
 
-async function testGetSystemActivity() {
-  try {
-    console.log('\n📋 Testing: Get System Activity');
-    const response = await axios.get(`${API_URL}/activities/system?limit=5`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    console.log('✅ Found', response.data.data.length, 'system activities');
-  } catch (error: any) {
-    console.log('❌ Get system activity failed:', error.response?.data || error.message);
-  }
-}
+// ==================== Bulk Import Test ====================
+async function testBulkImport() {
+  logSection('BULK IMPORT API');
 
-// ==================== Import Tests ====================
-
-async function testImportStudents() {
   try {
-    console.log('\n📁 Testing: Import Students from CSV');
-    
-    // Create a test CSV file
+    // Create test CSV file
     const csvContent = `name,email,program,track,status,joinDate
-John Doe,john.test@example.com,G-CMP,AI Product Development,active,2024-01-15
-Jane Smith,jane.test@example.com,G-GMP,Patent Track,active,2024-02-01`;
+Bulk Test Student,bulk.test@example.com,G-CMP,AI Product Development,active,2024-03-01`;
     
-    const csvPath = path.join(__dirname, 'test-students.csv');
+    const csvPath = path.join(__dirname, 'test-bulk-import.csv');
     fs.writeFileSync(csvPath, csvContent);
     
     const formData = new FormData();
@@ -224,121 +488,49 @@ Jane Smith,jane.test@example.com,G-GMP,Patent Track,active,2024-02-01`;
     const response = await axios.post(`${API_URL}/import/students`, formData, {
       headers: {
         ...formData.getHeaders(),
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${adminToken}`
       }
     });
-    console.log('✅ Import results:', response.data);
+    
+    logSuccess(`Bulk import completed: ${response.data.success} successful, ${response.data.failed} failed`);
     
     // Clean up
     fs.unlinkSync(csvPath);
   } catch (error: any) {
-    console.log('❌ Import students failed:', error.response?.data || error.message);
-  }
-}
-
-async function testImportOutcomes() {
-  try {
-    console.log('\n📁 Testing: Import Outcomes from CSV');
-    
-    // Create a test CSV file for outcomes
-    const csvContent = `studentEmail,type,title,status,date,tags
-john.test@example.com,PATENT,AI-based Patent Search System,FILED,2024-03-20,AI,Patent
-jane.test@example.com,PAPER,Advances in AI Research,PUBLISHED,2024-03-15,AI,Research`;
-    
-    const csvPath = path.join(__dirname, 'test-outcomes.csv');
-    fs.writeFileSync(csvPath, csvContent);
-    
-    const formData = new FormData();
-    formData.append('file', fs.createReadStream(csvPath));
-    
-    const response = await axios.post(`${API_URL}/import/outcomes`, formData, {
-      headers: {
-        ...formData.getHeaders(),
-        Authorization: `Bearer ${token}`
-      }
-    });
-    console.log('✅ Import results:', response.data);
-    
-    // Clean up
-    fs.unlinkSync(csvPath);
-  } catch (error: any) {
-    console.log('❌ Import outcomes failed:', error.response?.data || error.message);
-  }
-}
-
-// ==================== Search Tests ====================
-
-async function testSearch() {
-  try {
-    console.log('\n🔍 Testing: Search');
-    const response = await axios.get(`${API_URL}/search?q=AI`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    console.log('✅ Search results:', response.data.metadata);
-    console.log('   Students:', response.data.students?.length);
-    console.log('   Programs:', response.data.programs?.length);
-  } catch (error: any) {
-    console.log('❌ Search failed:', error.response?.data || error.message);
-  }
-}
-
-async function testSearchSuggestions() {
-  try {
-    console.log('\n💡 Testing: Search Suggestions');
-    const response = await axios.get(`${API_URL}/search/suggestions?q=AI`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    console.log('✅ Suggestions:', response.data.slice(0, 3));
-  } catch (error: any) {
-    console.log('❌ Search suggestions failed:', error.response?.data || error.message);
+    logError(`Bulk import test failed: ${error.response?.data?.error || error.message}`);
   }
 }
 
 // ==================== Run All Tests ====================
-
 async function runAllTests() {
-  console.log('🧪 Starting Complete Backend API Tests...\n');
-  console.log('='.repeat(50));
-  
-  await login();
-  await getTestIds();
-  
-  console.log('\n' + '='.repeat(50));
-  console.log('📊 DASHBOARD TESTS');
-  console.log('='.repeat(50));
-  await testStudentDashboard();
-  await testMentorDashboard();
-  await testAdminDashboard();
-  
-  console.log('\n' + '='.repeat(50));
-  console.log('📢 ANNOUNCEMENT TESTS');
-  console.log('='.repeat(50));
-  await testCreateAnnouncement();
-  await testGetAnnouncements();
-  await testUpdateAnnouncement();
-  await testDeleteAnnouncement();
-  
-  console.log('\n' + '='.repeat(50));
-  console.log('📋 ACTIVITY TESTS');
-  console.log('='.repeat(50));
-  await testGetUserActivity();
-  await testGetSystemActivity();
-  
-  console.log('\n' + '='.repeat(50));
-  console.log('📁 IMPORT TESTS');
-  console.log('='.repeat(50));
-  await testImportStudents();
-  await testImportOutcomes();
-  
-  console.log('\n' + '='.repeat(50));
-  console.log('🔍 SEARCH TESTS');
-  console.log('='.repeat(50));
+  console.log(`\n${colors.blue}${'🌟'.repeat(30)}${colors.reset}`);
+  console.log(`${colors.blue}🚀 STARTING PHASE 4 API TESTS${colors.reset}`);
+  console.log(`${colors.blue}${'🌟'.repeat(30)}${colors.reset}\n`);
+
+  const loggedIn = await login();
+  if (!loggedIn) {
+    logError('Cannot proceed with tests - login failed');
+    return;
+  }
+
+  await testPrograms();
+  await testDashboards();
+  await testAnnouncements();
+  await testProgress();
+  await testAssignments();
+  await testSessions();
+  await testDocuments();
+  await testOutcomes();
   await testSearch();
-  await testSearchSuggestions();
-  
-  console.log('\n' + '='.repeat(50));
-  console.log('✅ All tests completed!');
+  await testActivities();
+  await testSettings();
+  await testReports();
+  await testBulkImport();
+
+  console.log(`\n${colors.green}${'🎉'.repeat(30)}${colors.reset}`);
+  console.log(`${colors.green}✅ ALL TESTS COMPLETED SUCCESSFULLY!${colors.reset}`);
+  console.log(`${colors.green}${'🎉'.repeat(30)}${colors.reset}\n`);
 }
 
-// Run all tests
+// Run tests
 runAllTests().catch(console.error);

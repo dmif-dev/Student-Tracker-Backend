@@ -294,6 +294,7 @@
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, ProgramType, UserRole, StudentStatus, MentorStatus, OutcomeType, OutcomeStatus, DocumentType, DocumentVisibility } from '@prisma/client';
+import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
@@ -305,6 +306,43 @@ const __dirname = dirname(__filename);
 
 // Load environment variables
 dotenv.config({ path: resolve(__dirname, '../.env') });
+
+// Setup Supabase
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+async function getOrCreateSupabaseUser(email: string, password: string, role: string, name: string) {
+  // 1. Try to sign in first to reliably get the real UUID if they already exist
+  const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+  if (!signInError && signInData?.user) return signInData.user;
+  
+  // 1b. Fallback for the admin account if password was different
+  const { data: adminSignIn } = await supabase.auth.signInWithPassword({ email, password: 'admin123' });
+  if (adminSignIn?.user) return adminSignIn.user;
+
+  // 2. If login fails, try signing up
+  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { role, name } }
+  });
+
+  // If signUp succeeds but returns an empty identities array, it means Supabase gave us a FAKE 
+  // anti-enumeration UUID because the email actually exists but confirmation is enabled!
+  if (signUpData?.user) {
+    if (signUpData.user.identities && signUpData.user.identities.length === 0) {
+      console.log(`⚠️ Supabase returned a dummy UID for ${email}. The user exists but cannot be accessed without the correct password or admin rights.`);
+      return null;
+    }
+    return signUpData.user;
+  }
+
+  return null;
+}
 
 // Create PostgreSQL connection pool (same as in lib/prisma.ts)
 const pool = new Pool({
@@ -633,13 +671,22 @@ async function main() {
   console.log('🌱 Seeding database for DMIF Student Tracker...\n');
 
   try {
+    console.log('🧹 Clearing old data to ensure pristine seeding environment without unique constraint violations...');
+    const tableNames = ['OutcomeAnalytics', 'Outcome', 'Submission', 'Assignment', 'DocumentPermission', 'Document', 'SessionNote', 'Session', 'DailyProgress', 'WeeklyReport', 'DashboardStats', 'StudentTag', 'TagAssignment', 'Achievement', 'SavedReport', 'Dashboard', 'Notification', 'UserActivity', 'Student', 'Availability', 'MentorPreference', 'Folder', 'Mentor', 'Admin', 'User', 'Track', 'Program', 'Tag', 'BulkImportJob', 'ScheduledReport', 'AuditLog'];
+    for (const tableName of tableNames) {
+      await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${tableName}" CASCADE;`);
+    }
+    console.log('🧹 Old local data cleared.');
+
     // ==================== Create Admin User ====================
-    console.log('📝 Creating admin user...');
+    console.log('📝 Creating admin user in Supabase & Postgres...');
+    const authAdmin = await getOrCreateSupabaseUser('admin@dmif.org', 'admin123', 'ADMIN', 'DMIF Administrator');
+    if (!authAdmin) throw new Error('Failed to create admin in Supabase');
+
     const adminPassword = await bcrypt.hash('admin123', 10);
-    const admin = await prisma.user.upsert({
-      where: { email: 'admin@dmif.org' },
-      update: {},
-      create: {
+    const admin = await prisma.user.create({
+      data: {
+        id: authAdmin.id,
         email: 'admin@dmif.org',
         password: adminPassword,
         role: 'ADMIN',
@@ -651,7 +698,7 @@ async function main() {
         adminProfile: true
       }
     });
-    console.log('✅ Admin created');
+    console.log(`✅ Admin created - ID matched to Supabase: ${authAdmin.id}`);
 
     // ==================== Create Programs and Tracks ====================
     console.log('\n📚 Creating programs and tracks...');
@@ -699,11 +746,14 @@ async function main() {
     const mentorMap = new Map();
 
     for (const mentorData of MENTORS) {
+      // Supabase Auth
+      const authMentor = await getOrCreateSupabaseUser(mentorData.email, 'mentor123', 'MENTOR', mentorData.name);
+      if (!authMentor) continue;
+
       // Create user for mentor
-      const user = await prisma.user.upsert({
-        where: { email: mentorData.email },
-        update: {},
-        create: {
+      const user = await prisma.user.create({
+        data: {
+          id: authMentor.id,
           email: mentorData.email,
           password: await bcrypt.hash('mentor123', 10),
           role: 'MENTOR'
@@ -711,10 +761,8 @@ async function main() {
       });
 
       // Create mentor profile
-      const mentor = await prisma.mentor.upsert({
-        where: { userId: user.id },
-        update: {},
-        create: {
+      const mentor = await prisma.mentor.create({
+        data: {
           userId: user.id,
           name: mentorData.name,
           expertise: mentorData.expertise,
@@ -741,7 +789,7 @@ async function main() {
           }
         });
       }
-      console.log(`  ✅ ${mentorData.name} (${mentorData.expertise.slice(0, 3).join(', ')}...)`);
+      console.log(`  ✅ ${mentorData.name} (${mentorData.expertise.slice(0, 3).join(', ')}...) [Matched in Supabase]`);
     }
 
     // ==================== Create Students ====================
@@ -749,11 +797,14 @@ async function main() {
     const studentMap = new Map();
 
     for (const studentData of STUDENTS) {
+      // Supabase Auth
+      const authStudent = await getOrCreateSupabaseUser(studentData.email, 'student123', 'STUDENT', studentData.name);
+      if (!authStudent) continue;
+
       // Create user for student
-      const user = await prisma.user.upsert({
-        where: { email: studentData.email },
-        update: {},
-        create: {
+      const user = await prisma.user.create({
+        data: {
+          id: authStudent.id,
           email: studentData.email,
           password: await bcrypt.hash('student123', 10),
           role: 'STUDENT'
@@ -806,10 +857,8 @@ async function main() {
       studentMap.set(studentData.name, student);
 
       // Create dashboard stats
-      await prisma.dashboardStats.upsert({
-        where: { studentId: student.id },
-        update: {},
-        create: {
+      await prisma.dashboardStats.create({
+        data: {
           studentId: student.id,
           totalSessions: 0,
           totalProgress: 0,

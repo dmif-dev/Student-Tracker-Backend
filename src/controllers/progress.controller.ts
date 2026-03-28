@@ -269,16 +269,32 @@ export class ProgressController {
   async getProgressStats(req: AuthRequest, res: Response) {
     try {
       const { studentId } = req.params;
-
-      if (!progressService.canAccessStudent(req.user, studentId)) {
+      
+      // Check access
+      const student = await prisma.student.findUnique({
+        where: { id: studentId }
+      });
+      
+      if (!student) {
+        return res.status(404).json({ error: 'Student not found' });
+      }
+      
+      // Only student, their mentor, or admin can access
+      const canAccess = 
+        req.user?.role === 'ADMIN' ||
+        (req.user?.role === 'MENTOR' && student.mentorId === req.user?.mentor?.id) ||
+        (req.user?.role === 'STUDENT' && req.user?.student?.id === studentId);
+      
+      if (!canAccess) {
         return res.status(403).json({ error: 'Access denied' });
       }
-
+      
+      // Use the service method instead
       const stats = await progressService.calculateStudentStats(studentId);
       res.json(stats);
     } catch (error) {
-      console.error('Get stats error:', error);
-      res.status(500).json({ error: 'Failed to fetch statistics' });
+      console.error('Get progress stats error:', error);
+      res.status(500).json({ error: 'Failed to fetch stats' });
     }
   }
 
@@ -286,19 +302,30 @@ export class ProgressController {
     try {
       const { studentId } = req.params;
       const { months = 6 } = req.query;
-
-      if (!progressService.canAccessStudent(req.user, studentId)) {
+      
+      // Check access
+      const student = await prisma.student.findUnique({
+        where: { id: studentId }
+      });
+      
+      if (!student) {
+        return res.status(404).json({ error: 'Student not found' });
+      }
+      
+      const canAccess = 
+        req.user?.role === 'ADMIN' ||
+        (req.user?.role === 'MENTOR' && student.mentorId === req.user?.mentor?.id) ||
+        (req.user?.role === 'STUDENT' && req.user?.student?.id === studentId);
+      
+      if (!canAccess) {
         return res.status(403).json({ error: 'Access denied' });
       }
-
-      const trends = await progressService.calculateTrends(
-        studentId,
-        Number(months)
-      );
-
+      
+      // Use the service method instead
+      const trends = await progressService.calculateTrends(studentId, Number(months));
       res.json(trends);
     } catch (error) {
-      console.error('Get trends error:', error);
+      console.error('Get progress trends error:', error);
       res.status(500).json({ error: 'Failed to fetch trends' });
     }
   }

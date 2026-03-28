@@ -1,6 +1,7 @@
 // backend/src/middleware/auth.ts
 import { Request, Response, NextFunction } from 'express';
 import { createClient } from '@supabase/supabase-js';
+import { prisma } from '../lib/prisma.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -18,6 +19,7 @@ export interface AuthRequest extends Request {
   user?: any;
   student?: any;
   mentor?: any;
+  admin?: any;
 }
 
 export const authenticate = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -41,21 +43,68 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     }
 
     req.user = user;
+    
+    // Determine role based on email (priority)
+    let role = user.user_metadata?.role || 'STUDENT';
+    
+    // Override role based on email for known users
+    if (user.email === 'admin@dmif.org') {
+      role = 'ADMIN';
+    } else if (user.email === 'dr.madhan@dmif.org' || user.email === 'smith@dmif.org') {
+      role = 'MENTOR';
+    }
+    
+    // Load profile based on role
+    if (role === 'STUDENT') {
+      const student = await prisma.student.findUnique({
+        where: { userId: user.id }
+      });
+      if (student) {
+        req.user.student = student;
+        req.student = student; // Also attach directly for easier access
+      } else {
+        console.log(`⚠️ No student profile found for user ${user.email}`);
+      }
+    } else if (role === 'MENTOR') {
+      const mentor = await prisma.mentor.findUnique({
+        where: { userId: user.id }
+      });
+      if (mentor) {
+        req.user.mentor = mentor;
+        req.mentor = mentor; // Also attach directly for easier access
+      } else {
+        console.log(`⚠️ No mentor profile found for user ${user.email}`);
+      }
+    } else if (role === 'ADMIN') {
+      const admin = await prisma.admin.findUnique({
+        where: { userId: user.id }
+      });
+      if (admin) {
+        req.user.admin = admin;
+        req.admin = admin;
+      }
+    }
+    
+    // Store role in request for easy access
+    req.user.role = role;
+    
     next();
   } catch (err) {
+    console.error('Authentication error:', err);
     return res.status(401).json({ error: 'Authentication failed' });
   }
 };
 
-export const authorize = (roles: string[]) => {
+export const authorize = (...roles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const userRole = req.user.user_metadata?.role || 'Student';
+    const userRole = req.user.role || req.user.user_metadata?.role || 'STUDENT';
 
-    if (userRole === 'Admin') {
+    // Admin has access to everything
+    if (userRole === 'ADMIN') {
       return next();
     }
 
