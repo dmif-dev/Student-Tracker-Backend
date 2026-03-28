@@ -65,7 +65,11 @@ router.get('/mentor', authenticate, async (req: AuthRequest, res) => {
 // Admin dashboard
 router.get('/admin', authenticate, authorize('ADMIN'), async (req: AuthRequest, res) => {
   try {
-    const stats = await dashboardService.getAdminDashboardStats();
+    const { dateRange, program } = req.query;
+    const stats = await dashboardService.getAdminDashboardStats({
+      dateRange: dateRange as string,
+      programId: program as string
+    });
     res.json(stats);
   } catch (error) {
     console.error('Admin dashboard error:', error);

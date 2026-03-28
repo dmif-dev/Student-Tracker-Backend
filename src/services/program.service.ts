@@ -76,16 +76,21 @@ export class ProgramService {
     // Get mentor statistics
     const prog = await prisma.program.findUnique({ where: { id: programId } });
     const programType = prog?.name.replace('-', '_') as ProgramType;
+    const validProgramTypes = ['G_GMP', 'G_CMP', 'E_TIP', 'PCP'];
 
-    const mentorStats = await prisma.mentor.aggregate({
-      where: {
-        programs: { has: programType }
-      },
-      _count: true,
-      _avg: {
-        rating: true
-      }
-    });
+    let mentorStats: any = { _count: 0, _avg: { rating: 0 } };
+    
+    if (validProgramTypes.includes(programType)) {
+      mentorStats = await prisma.mentor.aggregate({
+        where: {
+          programs: { has: programType }
+        },
+        _count: true,
+        _avg: {
+          rating: true
+        }
+      });
+    }
 
     return {
       ...metrics,

@@ -29,9 +29,11 @@ import emailRoutes from './routes/email.js';
 import userRoutes from './routes/user.js';
 import adminRoutes from './routes/admin.js';
 import studentRoutes from './routes/student.js';
+import studentsAdminRoutes from './routes/students.routes.js';
 
 // Unified mentor routes (combines auth and feature APIs)
 import mentorRoutes from './routes/mentor.js';
+import mentorsAdminRoutes from './routes/mentors.routes.js';
 
 dotenv.config();
 
@@ -84,8 +86,10 @@ app.use('/api/email', emailRoutes);
 // Auth & User routes (Supabase-based)
 app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/student', studentRoutes);
+app.use('/api/student', studentRoutes); // Single student personal view
+app.use('/api/students', studentsAdminRoutes); // Admin bulk/management view
 app.use('/api/mentor', mentorRoutes);  // Unified mentor routes
+app.use('/api/mentors', mentorsAdminRoutes); // Admin bulk/management view for mentors
 
 // Health check
 app.get('/health', (req, res) => {
