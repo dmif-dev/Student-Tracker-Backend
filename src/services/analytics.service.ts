@@ -297,6 +297,134 @@ export class AnalyticsService {
     return '75-100%';
   }
 
+  // My code to match data frontend is expecting from backend
+
+  async generateInsights(programType?: string) {
+  const where: any = {};
+  if (programType && programType !== 'all') {
+    where.program = { name: programType.toUpperCase() }; 
+  }
+
+  // Define the 30-day window for active status
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  const [
+    totalStudents,
+    activeStudents,
+    totalMentors,
+    totalOutcomes,
+    programs,
+    outcomeTrendData
+  ] = await Promise.all([
+    prisma.student.count(),
+    prisma.student.count({ where: { lastActive: { gte: thirtyDaysAgo } } }),
+    prisma.mentor.count(),
+    prisma.outcome.count({ where }),
+    prisma.program.findMany({
+      include: {
+        students: true,
+        tracks: true // Ensure tracks are included
+      }
+    }),
+    this.getMonthlyGrowth(where)
+  ]);
+
+  // 1. Correct mapping for programEngagement (Must be an ARRAY)
+  const programEngagement = programs.map(p => ({
+    program: p.name,
+    activeStudents: p.students.filter(s => s.lastActive >= thirtyDaysAgo).length,
+    avgProgress: p.students.length > 0 
+      ? p.students.reduce((acc, s) => acc + s.progress, 0) / p.students.length 
+      : 0,
+    completionRate: 85, // You can calculate this based on status === 'COMPLETED'
+    hasMentors: p.name !== 'PCP',
+    hasOutcomes: p.name === 'G-GMP'
+  }));
+
+  // 2. Correct mapping for trackProgress (Must be an ARRAY)
+  const trackProgress = programs.flatMap(p => 
+    p.tracks.map(t => ({
+      program: p.name,
+      track: t.name,
+      progress: 70, // Map from your actual track progress logic
+      students: 10, // Map from your student count per track
+      hasMentor: p.name !== 'PCP',
+      completionRate: 75
+    }))
+  );
+
+  return {
+    summary: {
+      totalStudents,
+      activeStudents,
+      totalMentors,
+      totalOutcomes,
+      pcpStudents: await prisma.student.count({ where: { program: { name: 'PCP' } } }),
+      mentorLedStudents: await prisma.student.count({ where: { program: { name: { in: ['G-GMP', 'G-CMP', 'E-TIP'] } } } }),
+      programsWithOutcomes: programs.filter(p => p.name === 'G-GMP').length
+    },
+    // FIX: Changed from Object to Array to match frontend interface
+    programEngagement: programEngagement, 
+    
+    // FIX: Added missing property to prevent "undefined" error
+    trackProgress: trackProgress,
+
+    programData: programs.map(p => ({
+      id: p.id,
+      name: p.name,
+      // Default icon/color to avoid frontend crashes if config is missing
+      color: p.name === 'G-GMP' ? '#8B5CF6' : '#10B981', 
+      stats: {
+        totalStudents: p.students.length,
+        activeStudents: p.students.filter(s => s.lastActive >= thirtyDaysAgo).length,
+        totalMentors: 0, 
+        completionRate: 85,
+        averageProgress: p.students.length > 0 
+          ? p.students.reduce((acc, s) => acc + s.progress, 0) / p.students.length 
+          : 0
+      }
+    })),
+
+    // Ensure this matches: Array<{ month: string; total: number; pcp: number; mentorLed: number }>
+    enrollmentTrend: outcomeTrendData.map((item: any) => ({
+      month: item.month,
+      total: item.count,
+      pcp: Math.floor(item.count * 0.3), // Mocking split or calculate properly
+      mentorLed: Math.floor(item.count * 0.7)
+    })),
+
+    mentorStats: {
+        totalMentors,
+        activeMentors: totalMentors,
+        averageStudentsPerMentor: totalMentors > 0 ? totalStudents / totalMentors : 0,
+        mentorsByProgram: [],
+        totalSessionsPerMonth: 0
+    },
+    
+    pcpStats: { 
+      totalStudents: 0, 
+      activeStudents: 0, 
+      completedStudents: 0, 
+      averageProgress: 0, 
+      completionRate: 0, 
+      moduleProgress: []
+    },
+
+    outcomeStats: {
+        totalPatents: await prisma.outcome.count({ where: { ...where, type: 'PATENT' } }),
+        totalPapers: await prisma.outcome.count({ where: { ...where, type: 'PAPER' } }),
+        totalStartups: await prisma.outcome.count({ where: { ...where, type: 'STARTUP' } }),
+        byMonth: outcomeTrendData.map((item: any) => ({
+            month: item.month,
+            patents: 2, // Map actual counts here
+            papers: 3,
+            startups: 1
+        }))
+    }
+  };
+}
+  
+/*
   async generateInsights(program?: ProgramType) {
     const where: any = {};
     if (program) where.program = program;
@@ -307,7 +435,8 @@ export class AnalyticsService {
       outcomesByStatus,
       topStudents,
       topMentors,
-      monthlyGrowth
+      monthlyGrowth,
+      programStats        // added this to match with the integrated frontend
     ] = await Promise.all([
       prisma.outcome.count({ where }),
       prisma.outcome.groupBy({
@@ -335,10 +464,12 @@ export class AnalyticsService {
         students: topStudents,
         mentors: topMentors
       },
+      programEngagement: programStats,
       trends: monthlyGrowth,
       recommendations: this.generateRecommendations(monthlyGrowth)
     };
   }
+    */
 
   private async getTopStudents(limit: number, where: any) {
     const students = await prisma.student.findMany({
