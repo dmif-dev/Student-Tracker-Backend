@@ -3,13 +3,12 @@ import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { DocumentService } from '../services/document.service.js';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import {
+  uploadToSupabase,
+  downloadFromSupabase,
+  deleteFromSupabase
+} from '../lib/supabaseStorage.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 const documentService = new DocumentService();
 
 export class DocumentController {
@@ -38,20 +37,20 @@ export class DocumentController {
         return res.status(403).json({ error: 'Only mentors can upload documents' });
       }
 
-      // Create file URL
-      const fileUrl = `/uploads/${req.file.filename}`;
+      // Upload file buffer to Supabase Storage
+      const storagePath = await uploadToSupabase(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype
+      );
 
       // Parse metadata if provided as string
       let parsedMetadata = metadata;
       if (typeof metadata === 'string') {
-        try {
-          parsedMetadata = JSON.parse(metadata);
-        } catch (e) {
-          parsedMetadata = {};
-        }
+        try { parsedMetadata = JSON.parse(metadata); } catch { parsedMetadata = {}; }
       }
 
-      // Create document
+      // Create document record in database
       const document = await prisma.document.create({
         data: {
           title,
@@ -60,26 +59,15 @@ export class DocumentController {
           fileName: req.file.originalname,
           fileSize: req.file.size,
           fileType: req.file.mimetype,
-          fileUrl,
+          fileUrl: storagePath,          // Store Supabase path, NOT a local path
           uploadedById: mentor.id,
           program: program as any,
           track,
           visibility: visibility as any,
           status: 'PUBLISHED',
-          metadata: parsedMetadata || {},
-          permissions: {
-            create: {
-              userId: mentor.id,
-              userRole: 'MENTOR',
-              canView: true,
-              canDownload: true,
-              grantedBy: mentor.id
-            }
-          }
+          metadata: parsedMetadata || {}
         },
-        include: {
-          uploadedBy: true
-        }
+        include: { uploadedBy: true }
       });
 
       // Grant permissions to selected students
@@ -88,22 +76,28 @@ export class DocumentController {
           ? studentIds
           : JSON.parse(studentIds as string);
 
-        await documentService.grantBulkPermissions(
-          document.id,
-          studentIdArray,
-          true,
-          visibility !== 'MENTOR_ONLY'
-        );
+        if (studentIdArray.length > 0) {
+          await documentService.grantBulkPermissions(
+            document.id,
+            studentIdArray,
+            true,
+            visibility !== 'MENTOR_ONLY'
+          );
+        }
       }
 
       res.status(201).json(document);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Upload document error:', error);
-      res.status(500).json({ error: 'Failed to upload document' });
+      const isDev = process.env.NODE_ENV !== 'production';
+      res.status(500).json({
+        error: 'Failed to upload document',
+        ...(isDev && { details: error?.message || String(error) })
+      });
     }
   }
 
-  async getDocuments(req: AuthRequest, res: Response) {
+  getDocuments = async (req: AuthRequest, res: Response) => {
     try {
       const { program, type, track, search } = req.query;
 
@@ -128,7 +122,7 @@ export class DocumentController {
     }
   }
 
-  async getDocumentById(req: AuthRequest, res: Response) {
+  getDocumentById = async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
 
@@ -168,7 +162,7 @@ export class DocumentController {
     }
   }
 
-  async updateDocument(req: AuthRequest, res: Response) {
+  updateDocument = async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
       const updates = req.body;
@@ -202,7 +196,7 @@ export class DocumentController {
     }
   }
 
-  async deleteDocument(req: AuthRequest, res: Response) {
+  deleteDocument = async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
 
@@ -219,10 +213,12 @@ export class DocumentController {
         return res.status(403).json({ error: 'Access denied' });
       }
 
-      // Delete file from filesystem
-      const filePath = path.join(__dirname, '../../uploads', path.basename(document.fileUrl));
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+      // Delete file from Supabase Storage
+      try {
+        await deleteFromSupabase(document.fileUrl);
+      } catch (storageError) {
+        console.warn('Could not delete file from Supabase storage:', storageError);
+        // Continue to delete the DB record even if storage deletion fails
       }
 
       // Delete permissions first
@@ -230,7 +226,7 @@ export class DocumentController {
         where: { documentId: id }
       });
 
-      // Delete document
+      // Delete document record
       await prisma.document.delete({
         where: { id }
       });
@@ -244,10 +240,9 @@ export class DocumentController {
 
   // ==================== Document Download/View ====================
 
-  async downloadDocument(req: AuthRequest, res: Response) {
+  downloadDocument = async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
-      const userId = req.user?.id;
 
       const document = await prisma.document.findUnique({
         where: { id },
@@ -270,43 +265,24 @@ export class DocumentController {
         return res.status(403).json({ error: 'Download access denied' });
       }
 
-      // Track download
-      if (req.user?.role === 'STUDENT' && req.user?.student) {
-        await prisma.documentPermission.upsert({
-          where: {
-            documentId_userId: {
-              documentId: id,
-              userId: req.user.student.id
-            }
-          },
-          update: {
-            canDownload: true
-          },
-          create: {
-            documentId: id,
-            userId: req.user.student.id,
-            userRole: 'STUDENT',
-            canView: true,
-            canDownload: true,
-            grantedBy: 'system'
-          }
-        });
-      }
+      // Fetch file buffer from Supabase Storage
+      const fileBuffer = await downloadFromSupabase(document.fileUrl);
 
-      const filePath = path.join(__dirname, '../../uploads', path.basename(document.fileUrl));
-
-      if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ error: 'File not found' });
-      }
-
-      res.download(filePath, document.fileName);
-    } catch (error) {
+      res.setHeader('Content-Disposition', `attachment; filename="${document.fileName}"`);
+      res.setHeader('Content-Type', document.fileType);
+      res.setHeader('Content-Length', fileBuffer.length);
+      res.send(fileBuffer);
+    } catch (error: any) {
       console.error('Download document error:', error);
-      res.status(500).json({ error: 'Failed to download document' });
+      const isDev = process.env.NODE_ENV !== 'production';
+      res.status(500).json({ 
+        error: 'Failed to download document',
+        ...(isDev && { details: error?.message || String(error) })
+      });
     }
   }
 
-  async viewDocument(req: AuthRequest, res: Response) {
+  viewDocument = async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
 
@@ -324,36 +300,9 @@ export class DocumentController {
         return res.status(403).json({ error: 'Access denied' });
       }
 
-      // Track view for students
-      if (req.user?.role === 'STUDENT' && req.user?.student) {
-        await prisma.documentPermission.upsert({
-          where: {
-            documentId_userId: {
-              documentId: id,
-              userId: req.user.student.id
-            }
-          },
-          update: {
-            canView: true
-          },
-          create: {
-            documentId: id,
-            userId: req.user.student.id,
-            userRole: 'STUDENT',
-            canView: true,
-            canDownload: false,
-            grantedBy: 'system'
-          }
-        });
-      }
+      // Fetch file buffer from Supabase Storage
+      const fileBuffer = await downloadFromSupabase(document.fileUrl);
 
-      const filePath = path.join(__dirname, '../../uploads', path.basename(document.fileUrl));
-
-      if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ error: 'File not found' });
-      }
-
-      // For PDFs, display inline
       if (document.fileType === 'application/pdf') {
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `inline; filename="${document.fileName}"`);
@@ -361,11 +310,15 @@ export class DocumentController {
         res.setHeader('Content-Type', document.fileType);
         res.setHeader('Content-Disposition', `attachment; filename="${document.fileName}"`);
       }
-
-      fs.createReadStream(filePath).pipe(res);
-    } catch (error) {
+      res.setHeader('Content-Length', fileBuffer.length);
+      res.send(fileBuffer);
+    } catch (error: any) {
       console.error('View document error:', error);
-      res.status(500).json({ error: 'Failed to view document' });
+      const isDev = process.env.NODE_ENV !== 'production';
+      res.status(500).json({ 
+        error: 'Failed to view document',
+        ...(isDev && { details: error?.message || String(error) })
+      });
     }
   }
 
@@ -573,7 +526,7 @@ export class DocumentController {
 
   // ==================== Statistics and Reports ====================
 
-  async getDocumentStats(req: AuthRequest, res: Response) {
+  getDocumentStats = async (req: AuthRequest, res: Response) => {
     try {
       const { program, type } = req.query;
 

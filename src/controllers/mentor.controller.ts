@@ -94,7 +94,9 @@ export class MentorController {
               dailyProgress: {
                 orderBy: { date: 'desc' },
                 take: 5
-              }
+              },
+              program: true,
+              track: true
             }
           },
           sessions: {
@@ -590,6 +592,8 @@ export class MentorController {
             orderBy: { date: 'desc' },
             take: 1
           },
+          program: true,
+          track: true,
           _count: {
             select: {
               dailyProgress: true,
@@ -799,8 +803,31 @@ export class MentorController {
       const end = endDate ? new Date(endDate as string) : new Date(start);
       end.setDate(end.getDate() + 30);
 
-      const schedule = await mentorService.getMentorSchedule(mentorId, start, end);
-      res.json(schedule);
+      const sessions = await prisma.session.findMany({
+        where: {
+          mentorId,
+          date: {
+            gte: start,
+            lte: end
+          }
+        },
+        include: {
+          student: {
+            select: {
+              id: true,
+              name: true,
+              program: true,
+              track: true
+            }
+          }
+        },
+        orderBy: [
+          { date: 'asc' },
+          { startTime: 'asc' }
+        ]
+      });
+
+      res.json(sessions);
     } catch (error) {
       console.error('Get mentor schedule error:', error);
       res.status(500).json({ error: 'Failed to fetch mentor schedule' });
@@ -1134,6 +1161,88 @@ export class MentorController {
     } catch (error) {
       console.error('Mark all notifications read error:', error);
       res.status(500).json({ error: 'Failed to update notifications' });
+    }
+  }
+
+  async deleteNotification(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      
+      await prisma.notification.deleteMany({
+        where: { id, userId: req.user?.id }
+      });
+      
+      res.json({ message: 'Notification deleted' });
+    } catch (error) {
+      console.error('Delete notification error:', error);
+      res.status(500).json({ error: 'Failed to delete notification' });
+    }
+  }
+
+  // ==================== Alerts ====================
+
+  async getAlerts(req: AuthRequest, res: Response) {
+    try {
+      const mentorId = req.user?.mentor?.id;
+      if (!mentorId) {
+        return res.status(403).json({ error: 'Mentor profile not found' });
+      }
+
+      const alerts: any[] = [];
+      const now = new Date();
+      const next48Hours = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+
+      // Check upcoming sessions
+      const upcomingSessions = await prisma.session.count({
+        where: {
+          mentorId,
+          date: { gte: now, lte: next48Hours },
+          status: 'SCHEDULED'
+        }
+      });
+
+      if (upcomingSessions > 0) {
+        alerts.push({
+          id: 'alert-upcoming-sessions',
+          type: 'warning',
+          title: 'Upcoming Sessions',
+          message: `You have ${upcomingSessions} session(s) scheduled in the next 48 hours.`,
+          category: 'session',
+          action: { url: '/mentor/schedule', text: 'View Schedule' },
+          dismissed: false
+        });
+      }
+
+      // Check sessions needing notes
+      const pendingNotes = await prisma.session.findMany({
+        where: {
+          mentorId,
+          date: { lt: now },
+          status: 'SCHEDULED' // Assuming past scheduled sessions need completion & notes
+        },
+        include: {
+          notes: true
+        }
+      });
+      
+      const missingNotesCount = pendingNotes.filter(s => s.notes.length === 0).length;
+
+      if (missingNotesCount > 0) {
+        alerts.push({
+          id: 'alert-pending-notes',
+          type: 'info',
+          title: 'Pending Session Notes',
+          message: `${missingNotesCount} past session(s) waiting for notes.`,
+          category: 'session',
+          action: { url: '/mentor/schedule', text: 'Add Notes' },
+          dismissed: false
+        });
+      }
+
+      res.json(alerts);
+    } catch (error) {
+      console.error('Get alerts error:', error);
+      res.status(500).json({ error: 'Failed to fetch alerts' });
     }
   }
 

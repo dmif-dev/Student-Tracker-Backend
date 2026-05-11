@@ -79,6 +79,8 @@ router.get('/analytics', mentorController.getAnalytics);
 router.get('/notifications', mentorController.getNotifications);
 router.put('/notifications/:id/read', mentorController.markNotificationRead);
 router.put('/notifications/read-all', mentorController.markAllNotificationsRead);
+router.delete('/notifications/:id', mentorController.deleteNotification);
+router.get('/alerts', mentorController.getAlerts);
 
 // ==================== Settings ====================
 router.get('/settings', mentorController.getSettings);

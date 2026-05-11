@@ -101,14 +101,15 @@ export const authorize = (...roles: string[]) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const userRole = req.user.role || req.user.user_metadata?.role || 'STUDENT';
+    const userRole = (req.user.role || req.user.user_metadata?.role || 'STUDENT').toUpperCase();
 
     // Admin has access to everything
     if (userRole === 'ADMIN') {
       return next();
     }
 
-    if (!roles.includes(userRole)) {
+    const normalizedRoles = roles.map(r => r.toUpperCase());
+    if (!normalizedRoles.includes(userRole)) {
       return res.status(403).json({ error: 'Access denied: insufficient permissions' });
     }
 
