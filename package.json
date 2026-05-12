@@ -22,10 +22,11 @@
     "author": "",
     "license": "ISC",
     "dependencies": {
-        "@prisma/adapter-pg": "^7.5.0",
-        "@prisma/client": "^7.5.0",
+        "@prisma/adapter-pg": "^6.0.0",
+        "@prisma/client": "^6.0.0",
         "@sendgrid/mail": "^8.1.6",
         "@supabase/supabase-js": "^2.99.1",
+        "@tanstack/react-query": "^5.100.9",
         "bcryptjs": "^3.0.3",
         "bull": "^4.16.5",
         "cors": "^2.8.5",
@@ -76,7 +77,7 @@
         "jsonwebtoken": "^9.0.3",
         "nodemon": "^3.1.0",
         "prettier": "^3.2.5",
-        "prisma": "7",
+        "prisma": "^6.0.0",
         "ts-node": "^10.9.2",
         "tsx": "^4.21.0",
         "typescript": "^5.3.3"

@@ -112,6 +112,7 @@ app.listen(port, () => {
   console.log(`📝 Health check: http://localhost:${port}/health`);
   console.log(`📚 Programs API: http://localhost:${port}/api/programs`);
   console.log(`📊 Progress API: http://localhost:${port}/api/progress`);
+  console.log(`👤 Profile API: http://localhost:${port}/api/student/profile`);
   console.log(`📊 Reports API: http://localhost:${port}/api/reports`);
   console.log(`👨‍🏫 Mentor API: http://localhost:${port}/api/mentor`);
   console.log(`📅 Sessions API: http://localhost:${port}/api/sessions`);

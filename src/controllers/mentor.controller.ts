@@ -190,11 +190,19 @@ export class MentorController {
 
   async updateMentor(req: AuthRequest, res: Response) {
     try {
-      const { id } = req.params;
+      let mentorId = req.params.id;
+      if (!mentorId && req.user?.mentor?.id) {
+        mentorId = req.user.mentor.id;
+      }
+      
+      if (!mentorId) {
+        return res.status(400).json({ error: 'Mentor ID required' });
+      }
+
       const updates = req.body;
 
       const mentor = await prisma.mentor.update({
-        where: { id },
+        where: { id: mentorId },
         data: updates,
         include: {
           user: true
