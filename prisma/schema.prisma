@@ -303,17 +303,20 @@ model Mentor {
 
 // Mentor Session Preferences
 model MentorPreference {
-  id              String   @id @default(cuid())
-  mentorId        String
-  mentor          Mentor   @relation(fields: [mentorId], references: [id], onDelete: Cascade)
-  sessionDuration Int      @default(60) // minutes
-  bufferTime      Int      @default(15) // minutes between sessions
-  autoAccept      Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  mentorId             String
+  mentor               Mentor   @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+  sessionDuration      Int      @default(60) // minutes
+  bufferTime           Int      @default(15) // minutes between sessions
+  autoAccept           Boolean  @default(false)
+  notificationSettings Json?    // stores { emailNotifications, sessionReminders, studentUpdates, documentUploads, weeklyDigest }
+  privacySettings      Json?    // stores { profileVisibility, showEmail, showPhone }
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   @@unique([mentorId])
 }
+
 
 // Mentor availability for scheduling
 model Availability {

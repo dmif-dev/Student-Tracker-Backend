@@ -50,6 +50,15 @@ export class MentorService {
             ? (recentSessions.filter(s => s.status === 'COMPLETED').length / recentSessions.length) * 100
             : 0;
 
+        const sessionNotes = await prisma.sessionNote.aggregate({
+            where: { session: { mentorId } },
+            _avg: { duration: true }
+        });
+        
+        const totalDocuments = await prisma.document.count({
+            where: { uploadedById: mentorId }
+        });
+
         return {
             totalStudents,
             activeStudents,
@@ -57,7 +66,9 @@ export class MentorService {
             averageStudentProgress,
             totalOutcomes,
             completionRate: Math.round(completionRate),
-            rating: mentor.rating
+            rating: mentor.rating,
+            averageSessionDuration: Math.round(sessionNotes._avg.duration || 45),
+            documentsShared: totalDocuments
         };
     }
 

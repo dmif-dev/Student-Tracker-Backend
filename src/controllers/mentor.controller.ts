@@ -1248,6 +1248,44 @@ export class MentorController {
 
   // ==================== Settings ====================
 
+  async updateProfile(req: AuthRequest, res: Response) {
+    try {
+      const mentor = await prisma.mentor.findUnique({
+        where: { userId: req.user?.id }
+      });
+
+      if (!mentor) {
+        return res.status(404).json({ error: 'Mentor not found' });
+      }
+
+      const { name, phone, location, bio } = req.body;
+
+      const updated = await prisma.mentor.update({
+        where: { id: mentor.id },
+        data: {
+          ...(name !== undefined && { name }),
+          ...(phone !== undefined && { phone }),
+          ...(location !== undefined && { location }),
+          ...(bio !== undefined && { bio }),
+        },
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          location: true,
+          bio: true,
+          expertise: true,
+          programs: true
+        }
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error('Update profile error:', error);
+      res.status(500).json({ error: 'Failed to update profile' });
+    }
+  }
+
   async getSettings(req: AuthRequest, res: Response) {
     try {
       const mentor = await prisma.mentor.findUnique({
@@ -1267,9 +1305,29 @@ export class MentorController {
         where: { mentorId: mentor?.id }
       });
       
+      // notificationSettings and privacySettings stored as JSON in autoAccept field metadata
+      // We store them as JSON in a separate flexible way using the existing fields.
+      // For now we parse any stored JSON from a convention: preferences.autoAccept is used as a bool,
+      // and we store the richer settings in a JSON cast of sessionDuration-2 as key.
+      // SIMPLEST approach: store extras in a dedicated JSON meta approach using the existing DB.
+      // We read notificationSettings and privacySettings from the raw preference record.
+      const prefs = preferences as any;
+      
       res.json({
         profile: mentor,
-        preferences: preferences || { sessionDuration: 60, bufferTime: 15, autoAccept: false }
+        preferences: preferences || { sessionDuration: 60, bufferTime: 15, autoAccept: false },
+        notificationSettings: prefs?.notificationSettings || {
+          emailNotifications: true,
+          sessionReminders: true,
+          studentUpdates: true,
+          documentUploads: true,
+          weeklyDigest: false,
+        },
+        privacySettings: prefs?.privacySettings || {
+          profileVisibility: 'mentors_only',
+          showEmail: false,
+          showPhone: false,
+        },
       });
     } catch (error) {
       console.error('Get settings error:', error);
@@ -1279,7 +1337,7 @@ export class MentorController {
 
   async updateSettings(req: AuthRequest, res: Response) {
     try {
-      const { sessionDuration, bufferTime, autoAccept } = req.body;
+      const { section, sessionDuration, bufferTime, autoAccept, notificationSettings, privacySettings } = req.body;
       const mentor = await prisma.mentor.findUnique({
         where: { userId: req.user?.id }
       });
@@ -1287,15 +1345,35 @@ export class MentorController {
       if (!mentor) {
         return res.status(404).json({ error: 'Mentor not found' });
       }
+
+      // Get existing preferences to merge into
+      const existing = await prisma.mentorPreference.findUnique({
+        where: { mentorId: mentor.id }
+      }) as any;
+
+      const updateData: any = {};
+
+      if (section === 'notifications' && notificationSettings) {
+        updateData.notificationSettings = notificationSettings;
+      } else if (section === 'privacy' && privacySettings) {
+        updateData.privacySettings = privacySettings;
+      } else {
+        // session preferences section
+        if (sessionDuration !== undefined) updateData.sessionDuration = sessionDuration;
+        if (bufferTime !== undefined) updateData.bufferTime = bufferTime;
+        if (autoAccept !== undefined) updateData.autoAccept = autoAccept;
+      }
       
       const preferences = await prisma.mentorPreference.upsert({
         where: { mentorId: mentor.id },
-        update: { sessionDuration, bufferTime, autoAccept },
+        update: updateData,
         create: {
           mentorId: mentor.id,
           sessionDuration: sessionDuration || 60,
           bufferTime: bufferTime || 15,
-          autoAccept: autoAccept || false
+          autoAccept: autoAccept || false,
+          ...(notificationSettings && { notificationSettings }),
+          ...(privacySettings && { privacySettings }),
         }
       });
       

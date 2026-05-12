@@ -38,7 +38,9 @@ router.use(authenticate, authorize('Mentor', 'Admin'));
 // ==================== Profile & Account ====================
 router.get('/profile', mentorController.getMentorById);
 router.put('/profile', validate(mentorValidator), mentorController.updateMentor);
+router.put('/profile/me', mentorController.updateProfile);
 router.get('/stats', mentorController.getMentorStats);
+
 
 // ==================== Student Management ====================
 router.get('/students', mentorController.getAssignedStudents);
