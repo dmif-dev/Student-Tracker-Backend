@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { OutcomeService } from '../services/outcome.service.js';
 import { AnalyticsService } from '../services/analytics.service.js';
+import { logActivity } from '../utils/activity.js';
 
 const outcomeService = new OutcomeService();
 const analyticsService = new AnalyticsService();
@@ -18,7 +19,7 @@ export class OutcomeController {
       // Check if student exists
       const student = await prisma.student.findUnique({
         where: { id: outcomeData.studentId },
-        include: { mentor: true }
+        include: { mentor: true, program: true }
       });
 
       if (!student) {
@@ -35,6 +36,16 @@ export class OutcomeController {
       }
 
       const outcome = await outcomeService.createOutcome(outcomeData, req.user.id);
+
+      // Log the activity
+      if (req.user?.id) {
+        await logActivity(req.user.id, 'outcome', {
+          title: `New Outcome: ${outcome.title}`,
+          details: `Type: ${outcome.type}, Status: ${outcome.status}`,
+          studentId: student.id,
+          program: student.program?.name,
+        });
+      }
 
       res.status(201).json(outcome);
     } catch (error) {

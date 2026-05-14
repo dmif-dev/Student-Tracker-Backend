@@ -284,4 +284,43 @@ export class MentorService {
             }))
         };
     }
+
+    async getDetailedMentorPerformance(mentorId: string, period: 'week' | 'month' | 'year' = 'year') {
+        const [stats, performance, students] = await Promise.all([
+            this.calculateMentorStats(mentorId),
+            this.getMentorPerformance(mentorId, period), // Use dynamic period
+            prisma.student.findMany({
+                where: { mentorId },
+                select: { progress: true }
+            })
+        ]);
+
+        if (!stats) return null;
+
+        // Calculate progress distribution
+        const distribution = {
+            '0-25%': 0,
+            '26-50%': 0,
+            '51-75%': 0,
+            '76-100%': 0
+        };
+
+        students.forEach(s => {
+            if (s.progress <= 25) distribution['0-25%']++;
+            else if (s.progress <= 50) distribution['26-50%']++;
+            else if (s.progress <= 75) distribution['51-75%']++;
+            else distribution['76-100%']++;
+        });
+
+        const progressDistribution = Object.entries(distribution).map(([range, count]) => ({
+            name: range,
+            value: count
+        }));
+
+        return {
+            ...stats,
+            ...performance,
+            progressDistribution
+        };
+    }
 }

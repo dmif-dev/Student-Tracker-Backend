@@ -1433,4 +1433,41 @@ export class MentorController {
       res.status(500).json({ error: 'Failed to fetch available mentors' });
     }
   }
+
+  async getMentorPerformanceAdmin(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const { period = 'year' } = req.query;
+      
+      if (!id) {
+        return res.status(400).json({ error: 'Mentor ID required' });
+      }
+
+      const validPeriods = ['week', 'month', 'year'];
+      const performancePeriod = validPeriods.includes(period as string) ? (period as 'week' | 'month' | 'year') : 'year';
+
+      const mentor = await prisma.mentor.findUnique({
+        where: { id },
+        select: { name: true }
+      });
+
+      if (!mentor) {
+        return res.status(404).json({ error: 'Mentor not found' });
+      }
+
+      const performance = await mentorService.getDetailedMentorPerformance(id, performancePeriod);
+      
+      if (!performance) {
+        return res.status(404).json({ error: 'Mentor not found' });
+      }
+
+      res.json({
+        ...performance,
+        name: mentor.name
+      });
+    } catch (error) {
+      console.error('Get mentor performance error:', error);
+      res.status(500).json({ error: 'Failed to fetch mentor performance' });
+    }
+  }
 }

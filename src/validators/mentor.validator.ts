@@ -4,11 +4,11 @@ import { z } from 'zod';
 export const mentorValidator = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   expertise: z.array(z.string()).min(1, 'At least one expertise area required'),
-  programs: z.array(z.enum(['G_GMP', 'G_CMP', 'E_TIP'])).min(1, 'At least one program required'),
+  programs: z.array(z.enum(['G-GMP', 'G-CMP', 'E-TIP', 'PCP', 'G_GMP', 'G_CMP', 'E_TIP'])).min(1, 'At least one program required'),
   bio: z.string().optional(),
   phone: z.string().optional(),
   location: z.string().optional(),
-  status: z.enum(['ACTIVE', 'INACTIVE']).default('ACTIVE'),
+  status: z.string().transform(val => val.toUpperCase()).pipe(z.enum(['ACTIVE', 'INACTIVE'])).default('ACTIVE'),
   joinDate: z.string().or(z.date()).optional()
 });
 

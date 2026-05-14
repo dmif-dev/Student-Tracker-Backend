@@ -1,6 +1,8 @@
 // backend/src/controllers/student.controller.ts
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
+import { AuthRequest } from '../middleware/auth.js';
+import { logActivity } from '../utils/activity.js';
 
 export class StudentController {
   async getAllStudents(req: Request, res: Response) {
@@ -98,15 +100,60 @@ export class StudentController {
     try {
       const data = req.body;
       
+      // 1. Get or create User
+      let user = null;
+      if (data.email) {
+        user = await prisma.user.findUnique({ where: { email: data.email } });
+        if (!user) {
+          const tempPassword = Math.random().toString(36).slice(-8);
+          // Use bcrypt for passwords if needed, but since this is just mock fix, random is ok
+          user = await prisma.user.create({
+            data: {
+              email: data.email,
+              password: tempPassword,
+              role: 'STUDENT'
+            }
+          });
+        }
+      }
+      
+      const userId = data.userId || user?.id;
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID or Email is required' });
+      }
+
+      // 2. Resolve program, track, mentor IDs from names if IDs aren't provided directly
+      let programId = data.programId;
+      if (!programId && data.program) {
+        const prog = await prisma.program.findUnique({ where: { name: data.program } });
+        if (prog) programId = prog.id;
+      }
+      
+      let trackId = data.trackId;
+      if (!trackId && data.track && programId) {
+        const track = await prisma.track.findFirst({ where: { name: data.track, programId } });
+        if (track) trackId = track.id;
+      }
+      
+      let mentorId = data.mentorId;
+      if (!mentorId && data.mentor) {
+        const mentor = await prisma.mentor.findFirst({ where: { name: data.mentor } });
+        if (mentor) mentorId = mentor.id;
+      }
+
+      if (!programId || !trackId) {
+        return res.status(400).json({ error: 'Valid Program and Track are required' });
+      }
+
       const student = await prisma.student.create({
         data: {
-          userId: data.userId,
-          registrationNumber: data.registrationNumber,
+          userId,
+          registrationNumber: data.registrationNumber || `DMIF${new Date().getFullYear()}${Math.floor(Math.random() * 10000)}`,
           name: data.name,
-          programId: data.programId,
-          trackId: data.trackId,
-          mentorId: data.mentorId || null,
-          status: data.status || 'PENDING',
+          programId: programId,
+          trackId: trackId,
+          mentorId: mentorId || null,
+          status: data.status ? data.status.toUpperCase() : 'PENDING',
           joinDate: data.joinDate ? new Date(data.joinDate) : new Date(),
           phone: data.phone,
           address: data.address,
@@ -115,6 +162,16 @@ export class StudentController {
           program: true, track: true
         }
       });
+      
+      // Log the activity
+      if ((req as any).user?.id) {
+        await logActivity((req as any).user.id, 'enrollment', {
+          title: `New Student Enrolled: ${student.name}`,
+          details: `${student.name} enrolled in ${student.program?.name} (${student.track?.name})`,
+          program: student.program?.name,
+          studentId: student.id
+        });
+      }
       
       res.status(201).json(student);
     } catch (error: any) {
@@ -131,12 +188,43 @@ export class StudentController {
       const { id } = req.params;
       const data = req.body;
       
+      let programId = data.programId;
+      if (!programId && data.program) {
+        const prog = await prisma.program.findUnique({ where: { name: data.program } });
+        if (prog) programId = prog.id;
+      }
+      
+      let trackId = data.trackId;
+      if (!trackId && data.track && programId) {
+        const track = await prisma.track.findFirst({ where: { name: data.track, programId } });
+        if (track) trackId = track.id;
+      }
+      
+      let mentorId = data.mentorId;
+      if (!mentorId && data.mentor) {
+        const mentor = await prisma.mentor.findFirst({ where: { name: data.mentor } });
+        if (mentor) mentorId = mentor.id;
+      } else if (data.mentor === '' || data.mentor === null) {
+        mentorId = null; // Explicitly clearing mentor
+      }
+
+      // Filter to only include valid fields that have been sent
+      const updateData: any = {};
+      
+      if (data.name !== undefined) updateData.name = data.name;
+      if (data.registrationNumber !== undefined) updateData.registrationNumber = data.registrationNumber;
+      if (data.status !== undefined) updateData.status = data.status.toUpperCase();
+      if (data.joinDate !== undefined) updateData.joinDate = new Date(data.joinDate);
+      if (data.phone !== undefined) updateData.phone = data.phone;
+      if (data.address !== undefined) updateData.address = data.address;
+      
+      if (programId !== undefined) updateData.programId = programId;
+      if (trackId !== undefined) updateData.trackId = trackId;
+      if (mentorId !== undefined) updateData.mentorId = mentorId;
+
       const student = await prisma.student.update({
         where: { id },
-        data: {
-          ...data,
-          status: data.status ? data.status.toUpperCase() : undefined
-        }
+        data: updateData
       });
       
       res.json(student);

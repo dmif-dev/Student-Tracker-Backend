@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { ProgressService } from '../services/progress.service.js';
 import { ExportService } from '../services/export.service.js';
+import { logActivity } from '../utils/activity.js';
 
 const progressService = new ProgressService();
 const exportService = new ExportService();
@@ -47,6 +48,15 @@ export class ProgressController {
 
       // Check if weekly report should be generated
       await progressService.checkAndGenerateWeeklyReport(student.id);
+
+      // Log the activity
+      if (req.user?.id) {
+        await logActivity(req.user.id, 'progress_submitted', {
+          title: `Progress Update: ${student.name}`,
+          details: `Logged ${progressData.hoursSpent} hours on ${progressData.topic}`,
+          studentId: student.id,
+        });
+      }
 
       res.status(201).json(progress);
     } catch (error) {

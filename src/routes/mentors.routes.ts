@@ -16,6 +16,7 @@ router.get('/', mentorController.getAllMentors);
 // For now we'll skip validation or mock it if there's no specific admin-create validator
 router.post('/', mentorController.createMentor);
 router.get('/:id', mentorController.getMentorById);
+router.get('/:id/performance', mentorController.getMentorPerformanceAdmin);
 router.put('/:id', validate(mentorValidator), mentorController.updateMentor);
 router.delete('/:id', mentorController.deleteMentor);
 
