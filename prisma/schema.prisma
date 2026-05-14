@@ -137,6 +137,8 @@ model User {
   emailVerified          Boolean   @default(false)
   emailVerificationToken String?
   preferences            Json?
+
+  apiKeys                ApiKey[]
 }
 
 // Activity Logs (for user activity tracking)
@@ -709,3 +711,53 @@ model ScheduledReport {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 }
+
+// System Settings
+model SystemSettings {
+  id              String   @id @default(cuid())
+  category        String   // 'general', 'notifications', 'security'
+  settings        Json     // Stores key-value pairs for the category
+  updatedBy       String?
+  updatedAt       DateTime @updatedAt
+
+  @@unique([category])
+}
+
+// Email Templates
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g. 'welcome_email', 'password_reset'
+  subject     String
+  body        String   @db.Text
+  variables   String[] // e.g. ['name', 'link']
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// API Keys
+model ApiKey {
+  id          String   @id @default(cuid())
+  name        String
+  key         String   @unique
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  createdBy   String
+  user        User     @relation(fields: [createdBy], references: [id])
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// System Backups
+model Backup {
+  id          String   @id @default(cuid())
+  fileName    String
+  fileSize    Int
+  fileUrl     String
+  status      String   @default("COMPLETED") // PENDING, IN_PROGRESS, COMPLETED, FAILED
+  type        String   @default("MANUAL") // MANUAL, AUTOMATED
+  createdBy   String?
+  createdAt   DateTime @default(now())
+}
+
