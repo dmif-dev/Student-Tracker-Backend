@@ -8,7 +8,9 @@ import { reportValidator, scheduleValidator } from '../validators/report.validat
 const router = Router();
 const reportController = new ReportController();
 
-// Weekly reports
+// Weekly and Saved reports
+router.get('/weekly', authenticate, reportController.getAllWeeklyReports);
+router.get('/saved', authenticate, reportController.getAllSavedReports);
 router.get('/weekly/student/:studentId', authenticate, reportController.getStudentWeeklyReports);
 router.get('/weekly/:id', authenticate, reportController.getWeeklyReportById);
 router.post('/weekly/generate/:studentId', authenticate, reportController.generateWeeklyReport);

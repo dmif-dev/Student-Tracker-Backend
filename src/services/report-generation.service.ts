@@ -1,6 +1,6 @@
 // backend/src/services/report-generation.service.ts
 import { prisma } from '../lib/prisma.js';
-import { AttendanceStatus } from '@prisma/client';
+import { AttendanceStatus, DailyProgress, WeeklyReport } from '@prisma/client';
 
 export class ReportGenerationService {
   getCurrentWeekStart(): Date {
@@ -15,17 +15,17 @@ export class ReportGenerationService {
     const start = new Date(date);
     start.setDate(start.getDate() - start.getDay()); // Sunday
     start.setHours(0, 0, 0, 0);
-    
+
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
     end.setHours(23, 59, 59, 999);
-    
+
     return { start, end };
   }
 
   calculateNextRun(frequency: string, startDate: Date): Date {
     const next = new Date(startDate);
-    
+
     switch (frequency) {
       case 'daily':
         next.setDate(next.getDate() + 1);
@@ -39,7 +39,7 @@ export class ReportGenerationService {
       default:
         next.setDate(next.getDate() + 7);
     }
-    
+
     return next;
   }
 
@@ -77,11 +77,11 @@ export class ReportGenerationService {
     const topicsCovered = [...new Set(progress.flatMap(p => p.topicsCovered))];
     const attendanceCount = progress.filter(p => p.attendanceStatus === 'PRESENT').length;
     const attendanceRate = (attendanceCount / progress.length) * 100;
-    
+
     const performanceRatings = progress
       .filter(p => p.performanceRating)
       .map(p => p.performanceRating!);
-    
+
     const performanceAvg = performanceRatings.length > 0
       ? performanceRatings.reduce((a, b) => a + b, 0) / performanceRatings.length
       : null;
@@ -130,88 +130,141 @@ export class ReportGenerationService {
   }
 
   async generateCustomReport(config: any) {
-    const { studentIds, startDate, endDate, includeTopics = true } = config;
+    const { name, dateRange, programs = [], studentIds = [], mentorIds = [], includeOutcomes = false } = config;
 
-    const where: any = {
-      studentId: { in: studentIds },
-      date: {
-        gte: new Date(startDate),
-        lte: new Date(endDate)
-      }
-    };
+    const startDate = dateRange?.start ? new Date(dateRange.start) : new Date(0);
+    const endDate = dateRange?.end ? new Date(dateRange.end) : new Date();
 
-    const progress = await prisma.dailyProgress.findMany({
-      where,
+    // Fetch students
+    const students = await prisma.student.findMany({
+      where: { id: { in: studentIds } },
       include: {
-        student: {
-          select: {
-            name: true,
-            program: true,
-            trackId: true,
-            mentor: {
-              select: { name: true }
+        user: { select: { email: true } },
+        program: { select: { name: true } },
+        track: { select: { name: true } },
+        mentor: { select: { name: true } },
+        dailyProgress: {
+          where: {
+            date: {
+              gte: startDate,
+              lte: endDate
+            }
+          }
+        },
+        outcomes: {
+          where: {
+            date: {
+              gte: startDate,
+              lte: endDate
+            }
+          }
+        },
+      }
+    });
+
+    // Fetch mentors
+    const mentors = await prisma.mentor.findMany({
+      where: { id: { in: mentorIds } },
+      include: {
+        user: { select: { email: true } },
+        assignedStudents: true,
+        sessions: {
+          where: {
+            date: {
+              gte: startDate,
+              lte: endDate
             }
           }
         }
-      },
-      orderBy: [
-        { studentId: 'asc' },
-        { date: 'asc' }
-      ]
+      }
     });
 
-    // Group by student
-    const studentReports = progress.reduce((acc: any, curr) => {
-      if (!acc[curr.studentId]) {
-        acc[curr.studentId] = {
-          studentId: curr.studentId,
-          studentName: curr.student.name,
-          program: curr.student.program,
-          trackId: curr.student.trackId,
-          mentorName: curr.student.mentor?.name,
-          entries: [],
-          topics: new Set(),
-          totalPerformance: 0,
-          performanceCount: 0,
-          attendance: { PRESENT: 0, ABSENT: 0, LATE: 0 }
-        };
-      }
+    const studentsData = students.map(s => {
+      const attendanceCount = s.dailyProgress.filter(p => p.attendanceStatus === 'PRESENT').length;
+      const totalDays = s.dailyProgress.length;
+      const attendanceRate = totalDays > 0 ? (attendanceCount / totalDays) * 100 : 0;
 
-      const report = acc[curr.studentId];
-      report.entries.push(curr);
-      
-      if (includeTopics) {
-        curr.topicsCovered.forEach((topic: string) => report.topics.add(topic));
-      }
-      
-      if (curr.performanceRating) {
-        report.totalPerformance += curr.performanceRating;
-        report.performanceCount++;
-      }
-      
-      report.attendance[curr.attendanceStatus]++;
+      const patents = s.outcomes.filter(o => o.type === 'PATENT').length;
+      const papers = s.outcomes.filter(o => o.type === 'PAPER').length;
+      const startups = s.outcomes.filter(o => o.type === 'STARTUP').length;
+      const certifications = s.outcomes.filter(o => o.type === 'CERTIFICATION').length;
+      const projectsCompleted = s.outcomes.filter(o => o.type === 'PROJECT').length;
 
-      return acc;
-    }, {});
+      return {
+        id: s.id,
+        name: s.name,
+        email: s.user?.email || '',
+        program: s.program?.name || '',
+        track: s.track?.name || '',
+        mentor: s.mentor?.name || 'Not assigned',
+        progress: s.progress,
+        attendance: Math.round(attendanceRate),
+        activities: s.dailyProgress.length,
+        assignments: 0,
+        patents,
+        papers,
+        startups,
+        certifications,
+        projectsCompleted,
+        modulesCompleted: 0
+      };
+    });
 
-    // Calculate averages and convert Sets to Arrays
-    const result = Object.values(studentReports).map((report: any) => ({
-      ...report,
-      topics: Array.from(report.topics),
-      averagePerformance: report.performanceCount > 0 
-        ? report.totalPerformance / report.performanceCount 
-        : null,
-      totalEntries: report.entries.length,
-      attendanceRate: report.entries.length > 0
-        ? (report.attendance.PRESENT / report.entries.length) * 100
-        : 0
+    const mentorsData = mentors.map(m => ({
+      id: m.id,
+      name: m.name,
+      email: m.user?.email || '',
+      programs: m.programs.map(p => p.toString()),
+      expertise: m.expertise,
+      students: m.assignedStudents.length,
+      sessions: m.sessions.length
     }));
 
+    // Outcomes summary
+    let gGMPOutcomes = 0, pcpCertificationsCount = 0;
+    const gGMP = includeOutcomes ? { patents: 0, papers: 0, startups: 0, byMonth: [] } : undefined;
+    const pcp = includeOutcomes ? { certifications: 0, byLevel: { associate: 0, specialist: 0, professional: 0 } } : undefined;
+
+    if (includeOutcomes) {
+      students.forEach(s => {
+        if (s.program?.name === 'G-GMP' && gGMP) {
+          gGMP.patents += s.outcomes.filter(o => o.type === 'PATENT').length;
+          gGMP.papers += s.outcomes.filter(o => o.type === 'PAPER').length;
+          gGMP.startups += s.outcomes.filter(o => o.type === 'STARTUP').length;
+          gGMPOutcomes += s.outcomes.length;
+        }
+        if (s.program?.name === 'PCP' && pcp) {
+          const certs = s.outcomes.filter(o => o.type === 'CERTIFICATION');
+          pcp.certifications += certs.length;
+          pcpCertificationsCount += certs.length;
+        }
+      });
+    }
+
+    const gGMPStudents = studentsData.filter(s => s.program === 'G-GMP').length;
+    const pcpStudents = studentsData.filter(s => s.program === 'PCP').length;
+
     return {
-      generatedAt: new Date(),
-      dateRange: { startDate, endDate },
-      totalStudents: result.length,
-      students: result
+      reportName: name || 'Custom Report',
+      generatedAt: new Date().toISOString(),
+      dateRange: dateRange || { start: '', end: '' },
+      programs: programs.length > 0 ? programs : ['All Programs'],
+      students: studentsData,
+      mentors: mentorsData,
+      outcomes: { gGMP, pcp },
+      summary: {
+        totalStudents: studentsData.length,
+        totalMentors: mentorsData.length,
+        gGMPStudents,
+        gCMPStudents: studentsData.filter(s => s.program === 'G-CMP').length,
+        eTIPStudents: studentsData.filter(s => s.program === 'E-TIP').length,
+        pcpStudents,
+        totalOutcomes: gGMPOutcomes + pcpCertificationsCount,
+        averageProgress: studentsData.length > 0 ? studentsData.reduce((acc, s) => acc + s.progress, 0) / studentsData.length : 0,
+        averageAttendance: studentsData.length > 0 ? studentsData.reduce((acc, s) => acc + (s.attendance || 0), 0) / studentsData.length : 0,
+        totalActivities: studentsData.reduce((acc, s) => acc + (s.activities || 0), 0),
+        completedAssignments: 0
+      }
     };
   }
 
@@ -239,12 +292,12 @@ export class ReportGenerationService {
 
     const totalStudents = students.length;
     const activeStudents = students.filter(s => s.status === 'ACTIVE').length;
-    
+
     const totalProgress = students.reduce((sum, s) => sum + s.progress, 0);
     const averageProgress = totalStudents > 0 ? totalProgress / totalStudents : 0;
 
     const totalOutcomes = students.reduce((sum, s) => sum + s.outcomes.length, 0);
-    
+
     const outcomesByType = students.reduce((acc: any, student) => {
       student.outcomes.forEach(outcome => {
         acc[outcome.type] = (acc[outcome.type] || 0) + 1;
@@ -255,11 +308,11 @@ export class ReportGenerationService {
     // Use trackId instead of track
     const progressByTrack = students.reduce((acc: any, student) => {
       if (!acc[student.trackId]) {
-        acc[student.trackId] = { 
+        acc[student.trackId] = {
           trackId: student.trackId,
-          count: 0, 
-          progressSum: 0, 
-          students: [] 
+          count: 0,
+          progressSum: 0,
+          students: []
         };
       }
       acc[student.trackId].count++;
@@ -302,8 +355,8 @@ export class ReportGenerationService {
       summary: {
         totalStudents,
         activeStudents,
-        completionRate: totalStudents > 0 
-          ? (students.filter(s => s.status === 'COMPLETED').length / totalStudents) * 100 
+        completionRate: totalStudents > 0
+          ? (students.filter(s => s.status === 'COMPLETED').length / totalStudents) * 100
           : 0,
         averageProgress,
         totalOutcomes,
@@ -325,12 +378,12 @@ export class ReportGenerationService {
 
   private identifyStrengths(progress: any[]): string[] {
     const strengths: string[] = [];
-    
+
     // Check for high performance
-    const highPerformanceDays = progress.filter(p => 
+    const highPerformanceDays = progress.filter(p =>
       p.performanceRating && p.performanceRating >= 8
     );
-    
+
     if (highPerformanceDays.length >= 3) {
       strengths.push('Consistently high performance');
     }
@@ -350,7 +403,7 @@ export class ReportGenerationService {
     const ratings = progress
       .filter(p => p.performanceRating)
       .map(p => p.performanceRating);
-    
+
     if (ratings.length >= 3 && ratings[ratings.length - 1] > ratings[0]) {
       strengths.push('Shows improvement over time');
     }
@@ -368,10 +421,10 @@ export class ReportGenerationService {
     }
 
     // Check low performance
-    const lowPerformanceDays = progress.filter(p => 
+    const lowPerformanceDays = progress.filter(p =>
       p.performanceRating && p.performanceRating < 5
     );
-    
+
     if (lowPerformanceDays.length > 0) {
       areas.push('Some days with low performance ratings');
     }
@@ -385,7 +438,7 @@ export class ReportGenerationService {
     const ratings = progress
       .filter(p => p.performanceRating)
       .map(p => p.performanceRating);
-    
+
     if (ratings.length >= 3 && ratings[ratings.length - 1] < ratings[0]) {
       areas.push('Performance showing declining trend');
     }
@@ -400,9 +453,9 @@ export class ReportGenerationService {
     avgPerformance: number | null
   ): string {
     const attendanceRate = Math.round((attendedDays / totalDays) * 100);
-    
+
     let summary = `Attended ${attendedDays} of ${totalDays} days (${attendanceRate}% attendance). `;
-    
+
     if (topics.length > 0) {
       summary += `Covered ${topics.length} topics: ${topics.join(', ')}. `;
     }
@@ -413,4 +466,22 @@ export class ReportGenerationService {
 
     return summary;
   }
+
+  async generateReport(studentId: string, weekProgress: DailyProgress[]): Promise<Partial<WeeklyReport>> {
+    const summaryData = generateWeeklySummary(weekProgress);
+
+    return {
+      studentId,
+      ...summaryData,
+      generatedAt: new Date(),
+    };
+  }
+
+  // You can add your next-run calculation here
+  calculateNextRun(frequency: string, startDate: Date): Date {
+    const nextRun = new Date(startDate);
+    if (frequency === 'weekly') nextRun.setDate(nextRun.getDate() + 7);
+    return nextRun;
+  }
+
 }

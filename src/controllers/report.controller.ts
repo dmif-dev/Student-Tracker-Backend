@@ -11,6 +11,71 @@ const reportService = new ReportGenerationService();
 const exportService = new ExportService();
 
 export class ReportController {
+  async getAllWeeklyReports(req: AuthRequest, res: Response) {
+    try {
+      const { limit = 50, offset = 0 } = req.query;
+
+      const [reports, total] = await Promise.all([
+        prisma.weeklyReport.findMany({
+          include: {
+            student: {
+              select: {
+                name: true,
+                program: true,
+                track: true
+              }
+            }
+          },
+          orderBy: { weekStart: 'desc' },
+          take: Number(limit),
+          skip: Number(offset)
+        }),
+        prisma.weeklyReport.count()
+      ]);
+
+      res.json({
+        data: reports,
+        pagination: {
+          total,
+          limit: Number(limit),
+          offset: Number(offset),
+          hasMore: Number(offset) + reports.length < total
+        }
+      });
+    } catch (error) {
+      console.error('Get all weekly reports error:', error);
+      res.status(500).json({ error: 'Failed to fetch reports' });
+    }
+  }
+
+  async getAllSavedReports(req: AuthRequest, res: Response) {
+    try {
+      const { limit = 50, offset = 0 } = req.query;
+
+      const [reports, total] = await Promise.all([
+        prisma.savedReport.findMany({
+          orderBy: { createdAt: 'desc' },
+          take: Number(limit),
+          skip: Number(offset)
+        }),
+        prisma.savedReport.count()
+      ]);
+
+      res.json({
+        data: reports,
+        pagination: {
+          total,
+          limit: Number(limit),
+          offset: Number(offset),
+          hasMore: Number(offset) + reports.length < total
+        }
+      });
+    } catch (error) {
+      console.error('Get all saved reports error:', error);
+      res.status(500).json({ error: 'Failed to fetch saved reports' });
+    }
+  }
+
   async getStudentWeeklyReports(req: AuthRequest, res: Response) {
     try {
       const { studentId } = req.params;
@@ -125,14 +190,14 @@ export class ReportController {
       const reportConfig = req.body;
 
       // Validate input
-      if (!reportConfig.studentIds || !reportConfig.startDate || !reportConfig.endDate) {
+      if (!reportConfig.dateRange?.start || !reportConfig.dateRange?.end) {
         return res.status(400).json({
-          error: 'studentIds, startDate, and endDate are required'
+          error: 'dateRange with start and end are required'
         });
       }
 
       // Check if user has access to all students
-      if (req.user?.role !== 'ADMIN') {
+      if (req.user?.role !== 'ADMIN' && reportConfig.studentIds?.length > 0) {
         // For non-admins, verify they have access to each student
         const students = await prisma.student.findMany({
           where: {
@@ -148,7 +213,18 @@ export class ReportController {
 
       const report = await reportService.generateCustomReport(reportConfig);
 
-      res.status(201).json(report);
+      // Save it to SavedReport table so it shows up in UI
+      const savedReport = await prisma.savedReport.create({
+        data: {
+          name: reportConfig.name || 'Custom Report',
+          type: reportConfig.type || 'custom',
+          config: reportConfig,
+          data: report as any,
+          createdBy: req.user!.id,
+        }
+      });
+
+      res.status(201).json(savedReport);
     } catch (error: any) {
       console.error('Generate custom report error:', error);
       res.status(500).json({ error: error.message });
