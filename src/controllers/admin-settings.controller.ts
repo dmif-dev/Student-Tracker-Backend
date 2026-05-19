@@ -30,9 +30,11 @@ export class AdminSettingsController {
         update: { settings: req.body, updatedBy: userId },
         create: { category: 'general', settings: req.body, updatedBy: userId }
       });
+      console.log(`\n[SETTINGS] ⚙️ General settings updated by User ID: ${userId || 'unknown'}`);
+      console.log(`[SETTINGS] New General Settings:`, req.body);
       res.json(settings.settings);
     } catch (error) {
-      console.error(error);
+      console.error('❌ Failed to update general settings:', error);
       res.status(500).json({ error: 'Failed to update general settings' });
     }
   }
@@ -65,9 +67,11 @@ export class AdminSettingsController {
         update: { settings: req.body, updatedBy: userId },
         create: { category: 'notifications', settings: req.body, updatedBy: userId }
       });
+      console.log(`\n[SETTINGS] 🔔 Notification settings updated by User ID: ${userId || 'unknown'}`);
+      console.log(`[SETTINGS] New Notification Settings:`, req.body);
       res.json(settings.settings);
     } catch (error) {
-      console.error(error);
+      console.error('❌ Failed to update notification settings:', error);
       res.status(500).json({ error: 'Failed to update notification settings' });
     }
   }
@@ -79,9 +83,16 @@ export class AdminSettingsController {
         where: { category: 'security' }
       });
       res.json(settings?.settings || {
-        passwordComplexity: 'high',
-        mfaEnforced: false,
-        sessionTimeout: 60,
+        twoFactorEnabled: false,
+        sessionTimeout: '30',
+        passwordPolicy: {
+          minLength: 8,
+          requireUppercase: true,
+          requireLowercase: true,
+          requireNumbers: true,
+          requireSpecialChars: true,
+          expiryDays: 90
+        }
       });
     } catch (error) {
       console.error(error);
@@ -97,9 +108,11 @@ export class AdminSettingsController {
         update: { settings: req.body, updatedBy: userId },
         create: { category: 'security', settings: req.body, updatedBy: userId }
       });
+      console.log(`\n[SETTINGS] 🛡️ Security settings updated by User ID: ${userId || 'unknown'}`);
+      console.log(`[SETTINGS] New Security Settings:`, req.body);
       res.json(settings.settings);
     } catch (error) {
-      console.error(error);
+      console.error('❌ Failed to update security settings:', error);
       res.status(500).json({ error: 'Failed to update security settings' });
     }
   }
@@ -159,17 +172,30 @@ export class AdminSettingsController {
           } 
         };
       } else if (role === 'STUDENT') {
-        // Students require programId, trackId, etc. We can't fully create a student profile
-        // without those fields. We will just create the user for now.
-        // The name will show as 'Unknown' until the profile is completed.
+        // Students require programId, trackId, etc. We find the first default program and track in the DB to create it.
+        const defaultProgram = await prisma.program.findFirst();
+        const defaultTrack = defaultProgram ? await prisma.track.findFirst({ where: { programId: defaultProgram.id } }) : null;
+        if (defaultProgram && defaultTrack) {
+          userData.student = {
+            create: {
+              name: name || 'New Student',
+              registrationNumber: `REG-${Math.floor(100000 + Math.random() * 900000)}`,
+              programId: defaultProgram.id,
+              trackId: defaultTrack.id,
+              joinDate: new Date(),
+              status: 'PENDING'
+            }
+          };
+        }
       }
 
       const user = await prisma.user.create({
         data: userData
       });
+      console.log(`\n[USERS] 👤 Created new user: ${email} (${role}) - Profile Name: ${name}`);
       res.status(201).json(user);
     } catch (error) {
-      console.error(error);
+      console.error('❌ Failed to create user:', error);
       res.status(500).json({ error: 'Failed to create user' });
     }
   }
@@ -182,9 +208,10 @@ export class AdminSettingsController {
         where: { id },
         data: { email }
       });
+      console.log(`\n[USERS] 👤 Updated user ID: ${id} with new email: ${email}`);
       res.json(user);
     } catch (error) {
-      console.error(error);
+      console.error('❌ Failed to update user:', error);
       res.status(500).json({ error: 'Failed to update user' });
     }
   }
@@ -197,9 +224,10 @@ export class AdminSettingsController {
         where: { id },
         data: { role }
       });
+      console.log(`\n[USERS] 👤 Updated user ID: ${id} to new role: ${role}`);
       res.json(user);
     } catch (error) {
-      console.error(error);
+      console.error('❌ Failed to update user role:', error);
       res.status(500).json({ error: 'Failed to update user role' });
     }
   }
@@ -212,9 +240,10 @@ export class AdminSettingsController {
         where: { id },
         data: { isActive: status === 'active' }
       });
+      console.log(`\n[USERS] 👤 Updated user ID: ${id} status to: ${status}`);
       res.json(user);
     } catch (error) {
-      console.error(error);
+      console.error('❌ Failed to update user status:', error);
       res.status(500).json({ error: 'Failed to update user status' });
     }
   }
@@ -223,9 +252,10 @@ export class AdminSettingsController {
     try {
       const { id } = req.params;
       await prisma.user.delete({ where: { id } });
+      console.log(`\n[USERS] 👤 Deleted user ID: ${id}`);
       res.json({ message: 'User deleted' });
     } catch (error) {
-      console.error(error);
+      console.error('❌ Failed to delete user:', error);
       res.status(500).json({ error: 'Failed to delete user' });
     }
   }
@@ -432,9 +462,10 @@ export class AdminSettingsController {
         where: { id },
         data: { subject, body }
       });
+      console.log(`\n[EMAIL] 📧 Updated email template ID: ${id} - Subject: "${subject}"`);
       res.json(template);
     } catch (error) {
-      console.error(error);
+      console.error('❌ Failed to update email template:', error);
       res.status(500).json({ error: 'Failed to update email template' });
     }
   }
@@ -462,9 +493,10 @@ export class AdminSettingsController {
           createdBy: userId
         }
       });
+      console.log(`\n[API KEYS] 🔑 Created new API key: "${name}" for User ID: ${userId || 'unknown'}`);
       res.status(201).json(apiKey);
     } catch (error) {
-      console.error(error);
+      console.error('❌ Failed to create API key:', error);
       res.status(500).json({ error: 'Failed to create API key' });
     }
   }
@@ -473,9 +505,10 @@ export class AdminSettingsController {
     try {
       const { id } = req.params;
       await prisma.apiKey.delete({ where: { id } });
+      console.log(`\n[API KEYS] 🔑 Revoked/Deleted API key ID: ${id}`);
       res.json({ message: 'API key deleted' });
     } catch (error) {
-      console.error(error);
+      console.error('❌ Failed to delete API key:', error);
       res.status(500).json({ error: 'Failed to delete API key' });
     }
   }
@@ -505,9 +538,10 @@ export class AdminSettingsController {
           status: 'COMPLETED'
         }
       });
+      console.log(`\n[BACKUP] 💾 Created manual backup: ${backup.fileName} by User ID: ${userId || 'unknown'}`);
       res.status(201).json(backup);
     } catch (error) {
-      console.error(error);
+      console.error('❌ Failed to create backup:', error);
       res.status(500).json({ error: 'Failed to create backup' });
     }
   }
@@ -517,9 +551,10 @@ export class AdminSettingsController {
       const { id } = req.params;
       // Real scenario: stop connections, restore dump, restart.
       // Here we just mock it.
+      console.log(`\n[BACKUP] 🔄 Restoring database from backup ID: ${id}...`);
       res.json({ message: `Restored from backup ${id}` });
     } catch (error) {
-      console.error(error);
+      console.error('❌ Failed to restore backup:', error);
       res.status(500).json({ error: 'Failed to restore backup' });
     }
   }
@@ -528,10 +563,45 @@ export class AdminSettingsController {
     try {
       const { id } = req.params;
       await prisma.backup.delete({ where: { id } });
+      console.log(`\n[BACKUP] 💾 Deleted backup file ID: ${id}`);
       res.json({ message: 'Backup deleted' });
     } catch (error) {
-      console.error(error);
+      console.error('❌ Failed to delete backup:', error);
       res.status(500).json({ error: 'Failed to delete backup' });
+    }
+  }
+
+  // --- Backup Settings ---
+  async getBackupSettings(req: Request, res: Response) {
+    try {
+      const settings = await prisma.systemSettings.findUnique({
+        where: { category: 'backup' }
+      });
+      res.json(settings?.settings || {
+        autoBackupEnabled: true,
+        backupFrequency: 'daily',
+        retentionPeriod: '30'
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Failed to fetch backup settings' });
+    }
+  }
+
+  async updateBackupSettings(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.id;
+      const settings = await prisma.systemSettings.upsert({
+        where: { category: 'backup' },
+        update: { settings: req.body, updatedBy: userId },
+        create: { category: 'backup', settings: req.body, updatedBy: userId }
+      });
+      console.log(`\n[BACKUP] ⚙️ Backup configuration updated by User ID: ${userId || 'unknown'}`);
+      console.log(`[BACKUP] New Backup Configuration:`, req.body);
+      res.json(settings.settings);
+    } catch (error) {
+      console.error('❌ Failed to update backup settings:', error);
+      res.status(500).json({ error: 'Failed to update backup settings' });
     }
   }
 }

@@ -48,7 +48,14 @@ export class SettingsController {
           where: { userId: req.user.id },
           data: { name, phone, location: address, avatar }
         });
+      } else if (req.user.role === 'ADMIN') {
+        await prisma.admin.update({
+          where: { userId: req.user.id },
+          data: { name }
+        });
       }
+
+      console.log(`\n👤 [PROFILE] Profile updated in database for User ID: ${req.user.id} (${req.user.role}) - Name: ${name}`);
 
       res.json({ message: 'Profile updated successfully' });
     } catch (error) {

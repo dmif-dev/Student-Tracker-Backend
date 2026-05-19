@@ -51,6 +51,8 @@ router.get('/settings/backups', controller.getBackups);
 router.post('/settings/backups', controller.createBackup);
 router.post('/settings/backups/:id/restore', controller.restoreBackup);
 router.delete('/settings/backups/:id', controller.deleteBackup);
+router.get('/settings/backup-config', controller.getBackupSettings);
+router.put('/settings/backup-config', controller.updateBackupSettings);
 
 // --- Notifications ---
 router.get('/notifications', notificationsController.getNotifications);
