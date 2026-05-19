@@ -16,5 +16,7 @@ router.post('/', validate(createStudentValidator), studentController.createStude
 router.get('/:id', studentController.getStudentById);
 router.put('/:id', validate(updateStudentValidator), studentController.updateStudent);
 router.delete('/:id', studentController.deleteStudent);
+router.put('/:id/toggle-status', studentController.toggleStudentStatus);
+router.put('/:id/reset-progress', studentController.resetStudentProgress);
 
 export default router;

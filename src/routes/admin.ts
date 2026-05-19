@@ -1,23 +1,21 @@
 import { Router } from 'express';
-import { authenticate, authorize, AuthRequest } from '../middleware/auth.js';
+import { authenticate, authorize } from '../middleware/auth.js';
+import { AdminController } from '../controllers/admin.controller.js';
 
 const router = Router();
+const adminController = new AdminController();
 
 // Apply admin protection to all routes in this file
 router.use(authenticate, authorize('Admin'));
 
-router.get('/all-users', (req: AuthRequest, res) => {
-  res.json({
-    message: 'Admin access: list of all users',
-    data: [
-      { id: 1, email: 'student@example.com', role: 'Student' },
-      { id: 2, email: 'mentor@example.com', role: 'Mentor' }
-    ]
-  });
-});
+// User Management
+router.get('/users', adminController.getAllUsers);
+router.post('/users', adminController.createUser);
+router.put('/users/:id', adminController.updateUser);
+router.delete('/users/:id', adminController.deleteUser);
 
-router.post('/manage-system', (req: AuthRequest, res) => {
-  res.json({ message: 'System configuration updated by Admin' });
-});
+// Global Settings (using Admin's preferences)
+router.get('/settings', adminController.getGlobalSettings);
+router.put('/settings', adminController.updateGlobalSettings);
 
 export default router;

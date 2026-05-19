@@ -71,7 +71,9 @@ export class StudentController {
           program: { select: { name: true } },
           track: { select: { name: true } },
           mentor: { select: { name: true } },
-          user: { select: { email: true } },
+          user: { select: { email: true, isActive: true } },
+          outcomes: true,
+          sessions: true
         }
       });
 
@@ -79,14 +81,40 @@ export class StudentController {
         return res.status(404).json({ error: 'Student not found' });
       }
 
+      // Calculate real metrics
+      const completedSessions = student.sessions.filter((s: any) => s.status === 'COMPLETED').length;
+      const totalSessions = student.sessions.length;
+      const sessionAttendance = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0;
+      
+      const projectOutcomes = student.outcomes.filter((o: any) => o.type === 'PROJECT');
+      const certOutcomes = student.outcomes.filter((o: any) => o.type === 'CERTIFICATION');
+
+      const projects = {
+        completed: projectOutcomes.filter((o: any) => o.status === 'COMPLETED').length,
+        inProgress: projectOutcomes.filter((o: any) => o.status !== 'COMPLETED').length
+      };
+
+      const certifications = {
+        completed: certOutcomes.filter((o: any) => o.status === 'COMPLETED').length,
+        inProgress: certOutcomes.filter((o: any) => o.status !== 'COMPLETED').length
+      };
+
       // Format for frontend
       const result = {
         ...student,
         email: student.user?.email || '',
+        accountActive: student.user?.isActive ?? true,
         programName: student.program?.name,
         trackName: student.track?.name,
         mentorName: student.mentor?.name,
         status: student.status.toLowerCase(),
+        projects,
+        certifications,
+        sessionStats: {
+          completed: completedSessions,
+          total: totalSessions,
+          attendance: sessionAttendance
+        }
       };
 
       res.json(result);
@@ -221,6 +249,7 @@ export class StudentController {
       if (programId !== undefined) updateData.programId = programId;
       if (trackId !== undefined) updateData.trackId = trackId;
       if (mentorId !== undefined) updateData.mentorId = mentorId;
+      if (data.progress !== undefined) updateData.progress = Number(data.progress);
 
       const student = await prisma.student.update({
         where: { id },
@@ -246,6 +275,49 @@ export class StudentController {
     } catch (error) {
       console.error('Delete student error:', error);
       res.status(500).json({ error: 'Failed to delete student' });
+    }
+  }
+
+  async toggleStudentStatus(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const student = await prisma.student.findUnique({ where: { id } });
+      if (!student) return res.status(404).json({ error: 'Student not found' });
+
+      const user = await prisma.user.findUnique({ where: { id: student.userId } });
+      const newActiveState = !user?.isActive;
+      const newStudentStatus = newActiveState ? 'ACTIVE' : 'INACTIVE';
+
+      await prisma.$transaction([
+        prisma.user.update({
+          where: { id: student.userId },
+          data: { isActive: newActiveState }
+        }),
+        prisma.student.update({
+          where: { id },
+          data: { status: newStudentStatus }
+        })
+      ]);
+
+      res.json({ success: true, message: `Student account ${newActiveState ? 'activated' : 'deactivated'}`, status: newStudentStatus });
+    } catch (error) {
+      console.error('Toggle student status error:', error);
+      res.status(500).json({ error: 'Failed to toggle student account status' });
+    }
+  }
+
+  async resetStudentProgress(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const student = await prisma.student.update({
+        where: { id },
+        data: { progress: 0 }
+      });
+
+      res.json({ success: true, message: 'Student progress reset to 0%', student });
+    } catch (error) {
+      console.error('Reset student progress error:', error);
+      res.status(500).json({ error: 'Failed to reset student progress' });
     }
   }
 }

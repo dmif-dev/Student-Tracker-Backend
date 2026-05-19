@@ -19,7 +19,10 @@ export class SessionService {
       }
     });
 
-    if (!availability) return false;
+    if (!availability) {
+      console.warn(`No explicit availability found for mentor ${mentorId} on ${date}. Proceeding to check conflicts.`);
+      // return false;
+    }
 
     // Check for conflicting sessions
     const conflictingSession = await prisma.session.findFirst({
