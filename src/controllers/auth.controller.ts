@@ -293,4 +293,74 @@ export class AuthController {
       res.status(500).json({ error: 'Failed to get user info' });
     }
   }
+
+  async changePassword(req: Request, res: Response) {
+    try {
+      const { currentPassword, newPassword, refreshToken } = req.body;
+      const token = req.headers.authorization?.split(' ')[1];
+      
+      if (!token) {
+        console.warn('⚠️ [AUTH] Change password attempt failed: No token provided');
+        return res.status(401).json({ error: 'No token provided' });
+      }
+
+      if (!currentPassword || !newPassword) {
+        console.warn('⚠️ [AUTH] Change password attempt failed: Missing current or new password');
+        return res.status(400).json({ error: 'Current password and new password are required' });
+      }
+
+      // First, get the authenticated user from Supabase using their token
+      const { data: { user }, error: getUserError } = await supabase.auth.getUser(token);
+      if (getUserError || !user || !user.email) {
+        console.warn('⚠️ [AUTH] Change password attempt failed: Invalid token');
+        return res.status(401).json({ error: 'Invalid token' });
+      }
+
+      console.log(`\n🔑 [AUTH] Change password request received for user: ${user.email}`);
+
+      // To verify the current password, we try to sign in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword
+      });
+
+      if (signInError) {
+        console.warn(`⚠️ [AUTH] Change password failed for user ${user.email}: Incorrect current password`);
+        return res.status(400).json({ error: 'Incorrect current password' });
+      }
+
+      // Create a Supabase client with the user's specific access token to securely update
+      const userSupabase = createClient(supabaseUrl, supabaseKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false
+        }
+      });
+      
+      const { error: setSessionError } = await userSupabase.auth.setSession({
+        access_token: token,
+        refresh_token: refreshToken || ''
+      });
+
+      if (setSessionError) {
+        console.error(`❌ [AUTH] Failed to set user session on backend client:`, setSessionError);
+        return res.status(400).json({ error: `Auth session missing: ${setSessionError.message}` });
+      }
+
+      const { error: updateError } = await userSupabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (updateError) {
+        console.error(`❌ [AUTH] Failed to update user password in Supabase:`, updateError);
+        return res.status(400).json({ error: updateError.message });
+      }
+
+      console.log(`✅ [AUTH] Password successfully updated in Supabase for user: ${user.email}\n`);
+      res.json({ success: true, message: 'Password updated successfully' });
+    } catch (error: any) {
+      console.error('❌ [AUTH] Change password error:', error);
+      res.status(500).json({ error: error.message || 'Failed to change password' });
+    }
+  }
 }
