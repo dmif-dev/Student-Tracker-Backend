@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { AdminController } from '../controllers/admin.controller.js';
 
@@ -11,6 +12,29 @@ const adminController = new AdminController();
 const controller = new AdminSettingsController();
 const notificationsController = new AdminNotificationsController();
 const documentsController = new AdminDocumentsController();
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+      'image/jpeg',
+      'image/png',
+      'application/zip'
+    ];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type') as any, false);
+    }
+  }
+});
 
 // Apply admin protection to all routes in this file
 // router.use(authenticate, authorize('Admin'));
@@ -67,7 +91,7 @@ router.delete('/alerts/:id', notificationsController.dismissAlert);
 
 // --- Documents ---
 router.get('/documents', documentsController.getDocuments);
-router.post('/documents/upload', documentsController.uploadDocument);
+router.post('/documents/upload', upload.single('file'), documentsController.uploadDocument);
 router.put('/documents/:id', documentsController.updateDocument);
 router.delete('/documents/:id', documentsController.deleteDocument);
 router.put('/documents/:id/permissions', documentsController.updatePermissions);

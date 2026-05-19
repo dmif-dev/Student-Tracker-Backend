@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
+import { uploadToSupabase } from '../lib/supabaseStorage.js';
 
 export class AdminDocumentsController {
   async getDocuments(req: Request, res: Response) {
@@ -47,11 +48,31 @@ export class AdminDocumentsController {
 
   async uploadDocument(req: Request, res: Response) {
     try {
-      // In a real app with file upload, use multer. Here we expect JSON with file metadata for mock/demo purposes.
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
       const {
-        title, description, type, program, track, mentorId, fileName, fileSize, fileType,
+        title, description, type, program, track, mentorId,
         visibility, metadata, permissions
       } = req.body;
+
+      // Parse JSON strings back into objects since FormData sends them as strings
+      let parsedMetadata = metadata;
+      if (typeof metadata === 'string') {
+        try { parsedMetadata = JSON.parse(metadata); } catch { parsedMetadata = {}; }
+      }
+
+      let parsedPermissions = permissions;
+      if (typeof permissions === 'string') {
+        try { parsedPermissions = JSON.parse(permissions); } catch { parsedPermissions = {}; }
+      }
+
+      const storagePath = await uploadToSupabase(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype
+      );
 
       const adminId = (req as any).user?.id || 'admin';
 
@@ -66,15 +87,15 @@ export class AdminDocumentsController {
           title,
           description,
           type: docTypeEnum,
-          fileName,
-          fileSize,
-          fileType,
-          fileUrl: `/mock/url/${fileName}`, // mock URL since we don't have S3 set up
-          uploadedById: mentorId, // Mapped to Mentor who uploaded or selected
+          fileName: req.file.originalname,
+          fileSize: req.file.size,
+          fileType: req.file.mimetype,
+          fileUrl: storagePath,
+          uploadedById: mentorId, // Admin MUST supply a valid mentor ID in formData
           program: programType,
           track,
           visibility: visibilityEnum,
-          metadata,
+          metadata: parsedMetadata || {},
           status: 'PUBLISHED'
         }
       });
@@ -82,27 +103,27 @@ export class AdminDocumentsController {
       // Insert permissions
       const permData: any[] = [];
       
-      if (permissions?.viewStudents) {
-        permissions.viewStudents.forEach((studentId: string) => {
+      if (parsedPermissions?.viewStudents) {
+        parsedPermissions.viewStudents.forEach((studentId: string) => {
           permData.push({
             documentId: document.id,
             userId: studentId,
             userRole: 'STUDENT',
             canView: true,
-            canDownload: permissions.downloadStudents?.includes(studentId) || false,
+            canDownload: parsedPermissions.downloadStudents?.includes(studentId) || false,
             grantedBy: adminId
           });
         });
       }
 
-      if (permissions?.viewMentors) {
-        permissions.viewMentors.forEach((mId: string) => {
+      if (parsedPermissions?.viewMentors) {
+        parsedPermissions.viewMentors.forEach((mId: string) => {
           permData.push({
             documentId: document.id,
             userId: mId,
             userRole: 'MENTOR',
             canView: true,
-            canDownload: permissions.downloadMentors?.includes(mId) || false,
+            canDownload: parsedPermissions.downloadMentors?.includes(mId) || false,
             grantedBy: adminId
           });
         });
