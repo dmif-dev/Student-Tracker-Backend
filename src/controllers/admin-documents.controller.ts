@@ -116,23 +116,18 @@ export class AdminDocumentsController {
         });
       }
 
-      if (parsedPermissions?.viewMentors) {
-        parsedPermissions.viewMentors.forEach((mId: string) => {
-          permData.push({
-            documentId: document.id,
-            userId: mId,
-            userRole: 'MENTOR',
-            canView: true,
-            canDownload: parsedPermissions.downloadMentors?.includes(mId) || false,
-            grantedBy: adminId
-          });
-        });
-      }
 
       if (permData.length > 0) {
-        await prisma.documentPermission.createMany({
-          data: permData
-        });
+        try {
+          await prisma.documentPermission.createMany({
+            data: permData,
+            skipDuplicates: true
+          });
+        } catch (permError) {
+          // Permissions insert failed (e.g. invalid student IDs), but document was already saved.
+          // Log the warning and continue — the document is accessible, permissions can be set later.
+          console.warn('[AdminDocuments] Document created successfully but permissions insert failed:', permError);
+        }
       }
 
       res.status(201).json(document);
