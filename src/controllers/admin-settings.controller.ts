@@ -270,8 +270,15 @@ export class AdminSettingsController {
 
       console.log(`\n[USERS] 👤 Deleted user ID: ${id}`);
       res.json({ message: 'User deleted' });
-    } catch (error) {
-      console.error('❌ Failed to delete user:', error);
+    } catch (error: any) {
+      console.error('❌ Failed to delete user:', error.message);
+      if (error.code === 'P2003') {
+        // P2003: Foreign key constraint failed on the field: {field_name}
+        console.error('Foreign key constraint failed:', error.meta);
+        return res.status(400).json({ 
+          error: 'Cannot delete user because they have associated records (documents, sessions, etc.). Please deactivate the user instead.' 
+        });
+      }
       res.status(500).json({ error: 'Failed to delete user' });
     }
   }
