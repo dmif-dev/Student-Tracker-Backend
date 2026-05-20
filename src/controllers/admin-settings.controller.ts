@@ -251,7 +251,23 @@ export class AdminSettingsController {
   async deleteUser(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      await prisma.user.delete({ where: { id } });
+
+      await prisma.$transaction(async (tx) => {
+        // Delete related profiles if they exist
+        await tx.admin.deleteMany({ where: { userId: id } });
+        await tx.student.deleteMany({ where: { userId: id } });
+        await tx.mentor.deleteMany({ where: { userId: id } });
+        
+        // Delete other common relations that lack onDelete: Cascade
+        await tx.userSession.deleteMany({ where: { userId: id } });
+        await tx.userActivity.deleteMany({ where: { userId: id } });
+
+        // Finally delete the user
+        await tx.user.delete({
+          where: { id }
+        });
+      });
+
       console.log(`\n[USERS] 👤 Deleted user ID: ${id}`);
       res.json({ message: 'User deleted' });
     } catch (error) {
