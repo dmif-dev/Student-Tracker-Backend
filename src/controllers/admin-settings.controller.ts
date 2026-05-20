@@ -575,6 +575,8 @@ export class AdminSettingsController {
     }
   }
 
+
+
   async deleteBackup(req: Request, res: Response) {
     try {
       const { id } = req.params;
