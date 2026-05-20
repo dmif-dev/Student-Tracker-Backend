@@ -127,8 +127,20 @@ export class AdminController {
         return res.status(400).json({ error: 'Cannot delete your own account' });
       }
 
-      await prisma.user.delete({
-        where: { id }
+      await prisma.$transaction(async (tx) => {
+        // Delete related profiles if they exist
+        await tx.admin.deleteMany({ where: { userId: id } });
+        await tx.student.deleteMany({ where: { userId: id } });
+        await tx.mentor.deleteMany({ where: { userId: id } });
+        
+        // Delete other common relations that lack onDelete: Cascade
+        await tx.userSession.deleteMany({ where: { userId: id } });
+        await tx.userActivity.deleteMany({ where: { userId: id } });
+
+        // Finally delete the user
+        await tx.user.delete({
+          where: { id }
+        });
       });
 
       res.json({ message: 'User deleted successfully' });
