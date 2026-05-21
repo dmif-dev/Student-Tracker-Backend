@@ -281,19 +281,21 @@ export class MentorController {
         }
       });
 
-      // Create notification for student
-      await prisma.notification.create({
-        data: {
-          userId: student.user.id,
-          type: 'info',
-          category: 'session',
-          title: 'New Session Scheduled',
-          message: `A new session has been scheduled for ${new Date(date).toLocaleDateString()} at ${startTime}`,
-          actionUrl: `/sessions/${session.id}`,
-          actionText: 'View Session',
-          metadata: { sessionId: session.id }
-        }
-      });
+      // Create notification for student if they have a user account
+      if (student.user) {
+        await prisma.notification.create({
+          data: {
+            userId: student.user.id,
+            type: 'info',
+            category: 'session',
+            title: 'New Session Scheduled',
+            message: `A new session has been scheduled for ${new Date(date).toLocaleDateString()} at ${startTime}`,
+            actionUrl: `/sessions/${session.id}`,
+            actionText: 'View Session',
+            metadata: { sessionId: session.id }
+          }
+        });
+      }
 
       res.status(201).json(session);
     } catch (error) {
