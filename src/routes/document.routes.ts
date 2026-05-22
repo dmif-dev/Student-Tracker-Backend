@@ -28,7 +28,8 @@ const upload = multer({
       'text/plain',
       'image/jpeg',
       'image/png',
-      'application/zip'
+      'application/zip',
+      'video/mp4'
     ];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);

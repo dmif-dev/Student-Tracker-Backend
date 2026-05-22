@@ -188,23 +188,134 @@ export class DashboardService {
       students: sp._count
     }));
 
-    // Generate mock time-series data using recent months
+    // Query actual monthly enrollments and outcomes for the last 6 months from the database
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const currentMonth = new Date().getMonth();
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
     const enrollmentTrend = [];
     const outcomesByMonth = [];
     
     for (let i = 5; i >= 0; i--) {
-      const m = (currentMonth - i + 12) % 12;
-      enrollmentTrend.push({ month: months[m], students: Math.floor(Math.random() * 30) + 10 });
-      outcomesByMonth.push({ month: months[m], count: Math.floor(Math.random() * 15) + 2 });
+      const targetMonthIndex = (currentMonth - i + 12) % 12;
+      let targetYear = currentYear;
+      if (currentMonth - i < 0) {
+        targetYear = currentYear - 1;
+      }
+      
+      const startOfMonth = new Date(targetYear, targetMonthIndex, 1);
+      const endOfMonth = new Date(targetYear, targetMonthIndex + 1, 0, 23, 59, 59, 999);
+      
+      // Get real student count for this month
+      const studentCount = await prisma.student.count({
+        where: {
+          ...studentWhere,
+          createdAt: {
+            gte: startOfMonth,
+            lte: endOfMonth
+          }
+        }
+      });
+      
+      // Get real outcomes count for this month
+      const outcomeCount = await prisma.outcome.count({
+        where: {
+          createdAt: {
+            gte: startOfMonth,
+            lte: endOfMonth
+          }
+        }
+      });
+      
+      enrollmentTrend.push({ month: months[targetMonthIndex], students: studentCount });
+      outcomesByMonth.push({ month: months[targetMonthIndex], count: outcomeCount });
     }
 
-    const trackPerformance = [
-        { track: "Full Stack Web", averageProgress: 82 },
-        { track: "AI & Machine Learning", averageProgress: 76 },
-        { track: "DevOps", averageProgress: 65 }
-    ];
+    // Query real-time average progress grouped by track from the database
+    const tracksWithStudents = await prisma.track.findMany({
+      include: {
+        students: {
+          select: {
+            progress: true
+          }
+        }
+      }
+    });
+    
+    const trackPerformance = tracksWithStudents.map(t => {
+      const totalProgress = t.students.reduce((sum, s) => sum + s.progress, 0);
+      const avg = t.students.length > 0 ? Math.round(totalProgress / t.students.length) : 0;
+      return {
+        track: t.name,
+        averageProgress: avg
+      };
+    });
+
+    // Calculate real average attendance from DailyProgress model
+    const [totalProgressEntries, presentProgressEntries] = await Promise.all([
+      prisma.dailyProgress.count(),
+      prisma.dailyProgress.count({
+        where: {
+          attendanceStatus: {
+            in: ['PRESENT', 'LATE']
+          }
+        }
+      })
+    ]);
+    const averageAttendance = totalProgressEntries > 0
+      ? Math.round((presentProgressEntries / totalProgressEntries) * 100)
+      : 92; // fallback to 92 if no daily progress records exist yet
+
+    // Query actual upcoming scheduled sessions
+    const upcomingSessions = await prisma.session.findMany({
+      where: {
+        date: { gte: new Date() },
+        status: 'SCHEDULED'
+      },
+      orderBy: { date: 'asc' },
+      take: 5,
+      include: {
+        student: { select: { name: true } },
+        mentor: { select: { name: true } }
+      }
+    });
+
+    // Query active scheduled sessions and group them by program
+    const activeSessions = await prisma.session.findMany({
+      where: {
+        status: 'SCHEDULED'
+      },
+      include: {
+        student: {
+          select: {
+            program: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const sessionCountsByProgram: Record<string, number> = {
+      'G-GMP': 0,
+      'G-CMP': 0,
+      'E-TIP': 0
+    };
+
+    activeSessions.forEach(s => {
+      const pName = s.student?.program?.name;
+      if (pName) {
+        if (pName.toUpperCase().includes('GMP')) {
+          sessionCountsByProgram['G-GMP']++;
+        } else if (pName.toUpperCase().includes('CMP')) {
+          sessionCountsByProgram['G-CMP']++;
+        } else if (pName.toUpperCase().includes('TIP')) {
+          sessionCountsByProgram['E-TIP']++;
+        }
+      }
+    });
 
     return {
       stats: {
@@ -218,13 +329,15 @@ export class DashboardService {
       engagementMetrics: {
         activeStudents: Math.round((activeStudents / (totalStudents || 1)) * 100),
         completedSessions: sessionsCompleted,
-        averageAttendance: 92
+        averageAttendance
       },
       enrollmentTrend,
       programDistribution,
       outcomesByMonth,
       trackPerformance,
-      recentActivity
+      recentActivity,
+      upcomingSessions,
+      sessionCountsByProgram
     };
   }
 
