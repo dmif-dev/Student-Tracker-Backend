@@ -246,6 +246,21 @@ export class OutcomeController {
     }
   }
 
+  async getAdminAnalytics(req: AuthRequest, res: Response) {
+    try {
+      const filters = {
+        dateRange: req.query.dateRange as string,
+        program: req.query.program as string,
+        track: req.query.track as string
+      };
+      const stats = await analyticsService.getAdminAnalytics(filters);
+      res.json(stats);
+    } catch (error) {
+      console.error('Get admin analytics error:', error);
+      res.status(500).json({ error: 'Failed to fetch admin analytics' });
+    }
+  }
+
   // ==================== Interaction Tracking ====================
 
   async trackInteraction(req: AuthRequest, res: Response) {
