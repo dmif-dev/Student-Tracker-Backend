@@ -537,6 +537,9 @@ export class SessionController {
               },
               track: true
             }
+          },
+          notes: {
+            orderBy: { createdAt: 'desc' }
           }
         },
         orderBy: [
@@ -578,6 +581,9 @@ export class SessionController {
               name: true,
               expertise: true
             }
+          },
+          notes: {
+            orderBy: { createdAt: 'desc' }
           }
         },
         orderBy: [

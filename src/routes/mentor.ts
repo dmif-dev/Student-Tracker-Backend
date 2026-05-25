@@ -46,6 +46,7 @@ router.get('/stats', mentorController.getMentorStats);
 router.get('/students', mentorController.getAssignedStudents);
 router.get('/students/:studentId', mentorController.getStudentById);
 router.post('/students/:studentId/notes', mentorController.addStudentNotes);
+router.post('/students/:studentId/message', mentorController.sendMessageToStudent);
 router.post('/students/:studentId/assign', authorize('ADMIN'), mentorController.assignStudent);
 router.delete('/students/:studentId/unassign', authorize('ADMIN'), mentorController.unassignStudent);
 
@@ -56,6 +57,7 @@ router.post('/sessions', mentorController.scheduleSession);
 router.put('/sessions/:sessionId', mentorController.updateSession);
 router.delete('/sessions/:sessionId', mentorController.cancelSession);
 router.post('/sessions/:sessionId/notes', mentorController.addSessionNotes);
+router.put('/sessions/:sessionId/notes/:noteId', mentorController.updateSessionNote);
 router.get('/sessions/:sessionId/notes', mentorController.getSessionNotes);
 
 // ==================== Availability Management ====================

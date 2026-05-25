@@ -16,11 +16,7 @@ export class MentorService {
                         outcomes: true
                     }
                 },
-                sessions: {
-                    where: {
-                        status: 'COMPLETED'
-                    }
-                }
+                sessions: true
             }
         });
 

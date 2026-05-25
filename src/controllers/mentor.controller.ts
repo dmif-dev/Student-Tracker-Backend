@@ -96,7 +96,14 @@ export class MentorController {
                 take: 5
               },
               program: true,
-              track: true
+              track: true,
+              user: { select: { email: true } },
+              _count: {
+                select: {
+                  documentPermissions: true,
+                  submissions: true
+                }
+              }
             }
           },
           sessions: {
@@ -112,6 +119,9 @@ export class MentorController {
                   program: true,
                   track: true
                 }
+              },
+              notes: {
+                orderBy: { createdAt: 'desc' }
               }
             }
           },
@@ -241,7 +251,7 @@ export class MentorController {
     }
   }
 
-  // ==================== Session Management ====================
+
 
   async scheduleSession(req: AuthRequest, res: Response) {
     try {
@@ -442,6 +452,51 @@ export class MentorController {
     }
   }
 
+  async updateSessionNote(req: AuthRequest, res: Response) {
+    try {
+      const { sessionId, noteId } = req.params;
+      const { content, topics, duration, feedback, nextSteps, resources } = req.body;
+
+      const session = await prisma.session.findUnique({
+        where: { id: sessionId },
+        include: { student: { include: { user: true } } }
+      });
+
+      if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+
+      if (session.mentorId !== req.user?.mentor?.id && req.user?.role !== 'ADMIN') {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const existingNote = await prisma.sessionNote.findUnique({
+        where: { id: noteId }
+      });
+
+      if (!existingNote) {
+        return res.status(404).json({ error: 'Note not found' });
+      }
+
+      const updatedNote = await prisma.sessionNote.update({
+        where: { id: noteId },
+        data: {
+          content,
+          topics: topics || [],
+          duration: duration || 60,
+          feedback,
+          nextSteps,
+          resources: resources || []
+        }
+      });
+
+      res.json(updatedNote);
+    } catch (error) {
+      console.error('Update session note error:', error);
+      res.status(500).json({ error: 'Failed to update session note' });
+    }
+  }
+
   async getSessionNotes(req: AuthRequest, res: Response) {
     try {
       const { sessionId } = req.params;
@@ -604,10 +659,13 @@ export class MentorController {
           },
           program: true,
           track: true,
+          user: { select: { email: true } },
           _count: {
             select: {
               dailyProgress: true,
-              outcomes: true
+              outcomes: true,
+              submissions: true,
+              documentPermissions: true
             }
           }
         },
@@ -729,7 +787,25 @@ export class MentorController {
           program: true,
           track: true,
           dailyProgress: { orderBy: { date: 'desc' }, take: 10 },
-          outcomes: { orderBy: { date: 'desc' }, take: 5 }
+          outcomes: { orderBy: { date: 'desc' }, take: 5 },
+          submissions: {
+            include: {
+              assignment: true
+            },
+            orderBy: { submittedAt: 'desc' },
+            take: 10
+          },
+          documentPermissions: {
+            include: {
+              document: true
+            }
+          },
+          _count: {
+            select: {
+              documentPermissions: true,
+              submissions: true
+            }
+          }
         }
       });
       
@@ -783,6 +859,54 @@ export class MentorController {
     }
   }
 
+  async sendMessageToStudent(req: AuthRequest, res: Response) {
+    try {
+      const { studentId } = req.params;
+      const { subject, message } = req.body;
+      const mentorId = req.user?.mentor?.id;
+
+      if (!mentorId) {
+        return res.status(403).json({ error: 'Mentor profile not found' });
+      }
+
+      if (!message) {
+        return res.status(400).json({ error: 'Message body is required' });
+      }
+
+      const student = await prisma.student.findUnique({
+        where: { id: studentId },
+        select: { userId: true, mentorId: true }
+      });
+
+      if (!student) {
+        return res.status(404).json({ error: 'Student not found' });
+      }
+
+      // Optional: check if student is assigned to this mentor
+      if (student.mentorId !== mentorId && req.user?.role !== 'ADMIN') {
+        return res.status(403).json({ error: 'You can only message your assigned students' });
+      }
+
+      // Create a notification for the student
+      const notification = await prisma.notification.create({
+        data: {
+          userId: student.userId,
+          type: 'info',
+          category: 'message',
+          title: subject || 'New Message from Mentor',
+          message: message,
+          mentorId: mentorId,
+          studentId: studentId
+        }
+      });
+
+      res.status(201).json({ message: 'Message sent successfully', notification });
+    } catch (error) {
+      console.error('Send message error:', error);
+      res.status(500).json({ error: 'Failed to send message' });
+    }
+  }
+
   // ==================== Statistics & Performance ====================
 
   async getMentorStats(req: AuthRequest, res: Response) {
@@ -809,18 +933,16 @@ export class MentorController {
       
       const { startDate, endDate } = req.query;
 
-      const start = startDate ? new Date(startDate as string) : new Date();
-      const end = endDate ? new Date(endDate as string) : new Date(start);
-      end.setDate(end.getDate() + 30);
+      const whereClause: any = { mentorId };
+
+      if (startDate || endDate) {
+        whereClause.date = {};
+        if (startDate) whereClause.date.gte = new Date(startDate as string);
+        if (endDate) whereClause.date.lte = new Date(endDate as string);
+      }
 
       const sessions = await prisma.session.findMany({
-        where: {
-          mentorId,
-          date: {
-            gte: start,
-            lte: end
-          }
-        },
+        where: whereClause,
         include: {
           student: {
             select: {
@@ -829,6 +951,9 @@ export class MentorController {
               program: true,
               track: true
             }
+          },
+          notes: {
+            orderBy: { createdAt: 'desc' }
           }
         },
         orderBy: [
@@ -871,10 +996,13 @@ export class MentorController {
         return res.status(403).json({ error: 'Mentor profile not found' });
       }
       
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
       const sessions = await prisma.session.findMany({
         where: {
           mentorId,
-          date: { gte: new Date() },
+          date: { gte: today },
           status: 'SCHEDULED'
         },
         include: {
@@ -885,6 +1013,9 @@ export class MentorController {
               program: true,
               track: true
             }
+          },
+          notes: {
+            orderBy: { createdAt: 'desc' }
           }
         },
         orderBy: { date: 'asc' },
