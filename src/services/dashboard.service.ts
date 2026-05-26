@@ -317,6 +317,44 @@ export class DashboardService {
       }
     });
 
+    // 1. Query real daily progress performance ratings for the last 14 days from the database
+    const progressTrend = [];
+    const nowTime = new Date();
+    for (let i = 13; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(nowTime.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      const nextDate = new Date(date);
+      nextDate.setDate(date.getDate() + 1);
+      
+      const avgRating = await prisma.dailyProgress.aggregate({
+        where: {
+          date: {
+            gte: date,
+            lt: nextDate
+          }
+        },
+        _avg: {
+          performanceRating: true
+        }
+      });
+      
+      progressTrend.push({
+        day: date.toLocaleDateString('en-US', { weekday: 'short' }).substring(0, 1),
+        rating: avgRating._avg.performanceRating || 0
+      });
+    }
+
+    // 2. Query real student outcomes grouped by type from the database
+    const outcomesByTypeRaw = await prisma.outcome.groupBy({
+      by: ['type'],
+      _count: true
+    });
+    const outcomesByType = outcomesByTypeRaw.map(o => ({
+      type: o.type,
+      count: o._count
+    }));
+
     return {
       stats: {
         totalStudents,
@@ -337,7 +375,9 @@ export class DashboardService {
       trackPerformance,
       recentActivity,
       upcomingSessions,
-      sessionCountsByProgram
+      sessionCountsByProgram,
+      progressTrend,
+      outcomesByType
     };
   }
 
