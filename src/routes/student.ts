@@ -71,7 +71,7 @@ router.get('/profile', async (req: AuthRequest, res) => {
         include: {
           program: true,
           track: true,
-          mentor: { include: { user: true } },
+          mentor: { include: { user: true, availability: true, assignedStudents: { select: { id: true } } } },
           user: true,
         }
       });
@@ -79,7 +79,7 @@ router.get('/profile', async (req: AuthRequest, res) => {
       // Create dashboard stats
       await prisma.dashboardStats.create({
         data: {
-          studentId: student.id,
+          studentId: student!.id,
           totalSessions: 0,
           totalProgress: 0,
           currentStreak: 0,
@@ -87,7 +87,11 @@ router.get('/profile', async (req: AuthRequest, res) => {
         }
       });
 
-      console.log(`✅ Automatically created new student profile: ${student.name} in DB successfully.`);
+      console.log(`✅ Automatically created new student profile: ${student!.name} in DB successfully.`);
+    }
+
+    if (!student) {
+      return res.status(500).json({ error: 'Failed to retrieve or create student profile' });
     }
 
     // Dynamically calculate statistics from database
