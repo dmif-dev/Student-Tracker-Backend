@@ -29,14 +29,15 @@ export const STORAGE_BUCKET = 'documents';
 export async function uploadToSupabase(
   fileBuffer: Buffer,
   fileName: string,
-  mimeType: string
+  mimeType: string,
+  bucket: string = STORAGE_BUCKET
 ): Promise<string> {
   const timestamp = Date.now();
   const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
   const storagePath = `uploads/${timestamp}-${safeName}`;
 
   const { data, error } = await supabaseAdmin.storage
-    .from(STORAGE_BUCKET)
+    .from(bucket)
     .upload(storagePath, fileBuffer, {
       contentType: mimeType,
       upsert: false,
@@ -52,9 +53,9 @@ export async function uploadToSupabase(
 /**
  * Download a file from Supabase Storage as a Buffer
  */
-export async function downloadFromSupabase(storagePath: string): Promise<Buffer> {
+export async function downloadFromSupabase(storagePath: string, bucket: string = STORAGE_BUCKET): Promise<Buffer> {
   const { data, error } = await supabaseAdmin.storage
-    .from(STORAGE_BUCKET)
+    .from(bucket)
     .download(storagePath);
 
   if (error || !data) {
@@ -68,9 +69,9 @@ export async function downloadFromSupabase(storagePath: string): Promise<Buffer>
 /**
  * Delete a file from Supabase Storage
  */
-export async function deleteFromSupabase(storagePath: string): Promise<void> {
+export async function deleteFromSupabase(storagePath: string, bucket: string = STORAGE_BUCKET): Promise<void> {
   const { error } = await supabaseAdmin.storage
-    .from(STORAGE_BUCKET)
+    .from(bucket)
     .remove([storagePath]);
 
   if (error) {

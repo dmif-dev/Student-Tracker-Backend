@@ -84,7 +84,11 @@ export class NotificationController {
   async addNotificationHandler(req: AuthRequest, res: Response) {
     try {
       const data = req.body;
-      const notification = await this.createNotification(req.user.id, data);
+      const targetUserId = data.targetUserId || req.user.id;
+      // Note: we could add validation to ensure students can only message their own mentors,
+      // but for now we'll allow targeting other users if specified.
+      delete data.targetUserId; // Remove it so it doesn't try to save in Prisma if not defined
+      const notification = await this.createNotification(targetUserId, data);
       res.status(201).json(notification);
     } catch (error) {
       console.error('Add notification error:', error);

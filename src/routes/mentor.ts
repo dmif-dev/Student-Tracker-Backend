@@ -20,6 +20,7 @@
 
 // backend/src/routes/mentor.ts
 import { Router } from 'express';
+import multer from 'multer';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { MentorController } from '../controllers/mentor.controller.js';
 import { validate } from '../middleware/validate.middleware.js';
@@ -32,13 +33,31 @@ import {
 const router = Router();
 const mentorController = new MentorController();
 
-// ==================== All mentor routes require authentication and MENTOR role ====================
+// ==================== Public/Shared Mentor Routes ====================
+router.get('/:id/avatar', mentorController.getAvatar);
+
+// ==================== All other mentor routes require authentication and MENTOR role ====================
 router.use(authenticate, authorize('Mentor', 'Admin'));
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type, only images are allowed') as any, false);
+    }
+  }
+});
 
 // ==================== Profile & Account ====================
 router.get('/profile', mentorController.getMentorById);
 router.put('/profile', validate(mentorValidator), mentorController.updateMentor);
 router.put('/profile/me', mentorController.updateProfile);
+router.post('/profile/avatar', upload.single('avatar'), mentorController.uploadAvatar);
 router.get('/stats', mentorController.getMentorStats);
 
 

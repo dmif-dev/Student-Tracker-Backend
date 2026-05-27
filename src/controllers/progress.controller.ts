@@ -5,11 +5,31 @@ import { AuthRequest } from '../middleware/auth.js';
 import { ProgressService } from '../services/progress.service.js';
 import { ExportService } from '../services/export.service.js';
 import { logActivity } from '../utils/activity.js';
+import { uploadToSupabase } from '../lib/supabaseStorage.js';
 
 const progressService = new ProgressService();
 const exportService = new ExportService();
 
 export class ProgressController {
+  async uploadEvidence(req: AuthRequest, res: Response) {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      const storagePath = await uploadToSupabase(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype
+      );
+
+      res.status(201).json({ fileUrl: storagePath });
+    } catch (error) {
+      console.error('Upload evidence error:', error);
+      res.status(500).json({ error: 'Failed to upload evidence' });
+    }
+  }
+
   async createProgress(req: AuthRequest, res: Response) {
     try {
       const progressData = req.body;

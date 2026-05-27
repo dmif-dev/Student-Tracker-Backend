@@ -17,7 +17,7 @@ router.get('/profile', async (req: AuthRequest, res) => {
       include: {
         program: true,
         track: true,
-        mentor: { include: { user: true } },
+        mentor: { include: { user: true, availability: true, assignedStudents: { select: { id: true } } } },
         user: true,
       }
     });
@@ -27,6 +27,7 @@ router.get('/profile', async (req: AuthRequest, res) => {
     // Format to match what frontend expects
     const profile = {
         id: student.registrationNumber,
+        studentId: student.id,
         firstName: student.name.split(' ')[0] || '',
         lastName: student.name.split(' ').slice(1).join(' ') || '',
         email: student.user?.email || '',
@@ -38,6 +39,7 @@ router.get('/profile', async (req: AuthRequest, res) => {
         programTrack: student.track?.name || student.program?.name || 'Unknown',
         mentor: student.mentor?.name || 'Unassigned',
         mentorEmail: student.mentor?.user?.email || '',
+        mentorDetails: student.mentor || null,
         website: '',
         linkedin: '',
         github: '',

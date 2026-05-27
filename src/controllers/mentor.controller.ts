@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { MentorService } from '../services/mentor.service.js';
 import { ProgramType } from '@prisma/client';
+import { uploadToSupabase, deleteFromSupabase, downloadFromSupabase, supabaseAdmin, STORAGE_BUCKET } from '../lib/supabaseStorage.js';
 
 const mentorService = new MentorService();
 
@@ -1389,6 +1390,76 @@ export class MentorController {
 
   // ==================== Settings ====================
 
+  async uploadAvatar(req: AuthRequest, res: Response) {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      const mentor = await prisma.mentor.findUnique({
+        where: { userId: req.user?.id }
+      });
+
+      if (!mentor) {
+        return res.status(404).json({ error: 'Mentor not found' });
+      }
+
+      // If the mentor already has an avatar in Supabase, we could optionally delete it here
+      // if (mentor.avatar && mentor.avatar.includes('supabase.co')) {
+      //   await deleteFromSupabase(mentor.avatar);
+      // }
+
+      const storagePath = await uploadToSupabase(
+        req.file.buffer,
+        `mentor_${mentor.id}_${Date.now()}_${req.file.originalname}`,
+        req.file.mimetype,
+        'avatars'
+      );
+
+      const updated = await prisma.mentor.update({
+        where: { id: mentor.id },
+        data: { avatar: storagePath }
+      });
+
+      res.json({ avatarUrl: updated.avatar });
+    } catch (error: any) {
+      console.error('Error uploading mentor avatar:', error);
+      res.status(500).json({ error: 'Failed to upload avatar' });
+    }
+  }
+
+  async getAvatar(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      const mentor = await prisma.mentor.findUnique({
+        where: { id }
+      });
+
+      if (!mentor || !mentor.avatar) {
+        return res.status(404).json({ error: 'Avatar not found' });
+      }
+
+      if (mentor.avatar.startsWith('http')) {
+        return res.redirect(mentor.avatar);
+      }
+
+      const fileBuffer = await downloadFromSupabase(mentor.avatar, 'avatars');
+      
+      // Determine content type roughly based on extension, though we didn't save mimetype to DB
+      const isPng = mentor.avatar.toLowerCase().endsWith('.png');
+      const isGif = mentor.avatar.toLowerCase().endsWith('.gif');
+      const contentType = isPng ? 'image/png' : isGif ? 'image/gif' : 'image/jpeg';
+      
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+      res.send(fileBuffer);
+    } catch (error: any) {
+      console.error('Error fetching mentor avatar:', error);
+      res.status(500).json({ error: 'Failed to fetch avatar' });
+    }
+  }
+
   async updateProfile(req: AuthRequest, res: Response) {
     try {
       const mentor = await prisma.mentor.findUnique({
@@ -1399,7 +1470,7 @@ export class MentorController {
         return res.status(404).json({ error: 'Mentor not found' });
       }
 
-      const { name, phone, location, bio } = req.body;
+      const { name, phone, location, bio, removeAvatar } = req.body;
 
       const updated = await prisma.mentor.update({
         where: { id: mentor.id },
@@ -1408,6 +1479,7 @@ export class MentorController {
           ...(phone !== undefined && { phone }),
           ...(location !== undefined && { location }),
           ...(bio !== undefined && { bio }),
+          ...(removeAvatar === true && { avatar: null }),
         },
         select: {
           id: true,

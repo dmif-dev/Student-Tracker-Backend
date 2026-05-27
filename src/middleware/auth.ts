@@ -45,7 +45,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     req.user = user;
     
     // Determine role based on email (priority)
-    let role = user.user_metadata?.role || 'STUDENT';
+    let role = (user.user_metadata?.role || 'STUDENT').toUpperCase();
     
     // Override role based on email for known users
     if (user.email === 'admin@dmif.org') {
