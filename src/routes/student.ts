@@ -37,6 +37,8 @@ router.get('/profile', async (req: AuthRequest, res) => {
         avatar: student.avatar || '/assets/student-profile.jpg',
         joinDate: student.joinDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
         programTrack: student.track?.name || student.program?.name || 'Unknown',
+        programName: student.program?.name || null,
+        trackName: student.track?.name || null,
         mentor: student.mentor?.name || 'Unassigned',
         mentorEmail: student.mentor?.user?.email || '',
         mentorDetails: student.mentor || null,
