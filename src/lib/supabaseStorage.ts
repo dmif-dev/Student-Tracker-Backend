@@ -1,6 +1,8 @@
 // backend/src/lib/supabaseStorage.ts
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
 
 dotenv.config();
 
@@ -36,6 +38,19 @@ export async function uploadToSupabase(
   const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
   const storagePath = `uploads/${timestamp}-${safeName}`;
 
+  // Fallback to local storage if service key is missing
+  if (!process.env.SUPABASE_SERVICE_KEY?.trim()) {
+    console.warn('⚠️ SUPABASE_SERVICE_KEY not set — falling back to local disk storage.');
+    const localDir = path.resolve('uploads');
+    if (!fs.existsSync(localDir)) {
+      fs.mkdirSync(localDir, { recursive: true });
+    }
+    const localFilePath = path.join(localDir, `${timestamp}-${safeName}`);
+    fs.writeFileSync(localFilePath, fileBuffer);
+    console.log('✅ Saved file locally to:', localFilePath);
+    return storagePath;
+  }
+
   const { data, error } = await supabaseAdmin.storage
     .from(bucket)
     .upload(storagePath, fileBuffer, {
@@ -54,6 +69,17 @@ export async function uploadToSupabase(
  * Download a file from Supabase Storage as a Buffer
  */
 export async function downloadFromSupabase(storagePath: string, bucket: string = STORAGE_BUCKET): Promise<Buffer> {
+  // Fallback to local storage download if service key is missing
+  if (!process.env.SUPABASE_SERVICE_KEY?.trim()) {
+    console.warn('⚠️ SUPABASE_SERVICE_KEY not set — falling back to local disk download.');
+    const parts = storagePath.split('/');
+    const fileName = parts[parts.length - 1];
+    const localFilePath = path.resolve('uploads', fileName);
+    if (fs.existsSync(localFilePath)) {
+      return fs.readFileSync(localFilePath);
+    }
+    throw new Error(`Local file not found: ${localFilePath}`);
+  }
   const { data, error } = await supabaseAdmin.storage
     .from(bucket)
     .download(storagePath);
@@ -70,6 +96,20 @@ export async function downloadFromSupabase(storagePath: string, bucket: string =
  * Delete a file from Supabase Storage
  */
 export async function deleteFromSupabase(storagePath: string, bucket: string = STORAGE_BUCKET): Promise<void> {
+  // Fallback to local storage delete if service key is missing
+  if (!process.env.SUPABASE_SERVICE_KEY?.trim()) {
+    console.warn('⚠️ SUPABASE_SERVICE_KEY not set — falling back to local disk delete.');
+    const parts = storagePath.split('/');
+    const fileName = parts[parts.length - 1];
+    const localFilePath = path.resolve('uploads', fileName);
+    if (fs.existsSync(localFilePath)) {
+      fs.unlinkSync(localFilePath);
+      console.log('✅ Deleted local file:', localFilePath);
+      return;
+    }
+    console.warn('Local file to delete did not exist:', localFilePath);
+    return;
+  }
   const { error } = await supabaseAdmin.storage
     .from(bucket)
     .remove([storagePath]);

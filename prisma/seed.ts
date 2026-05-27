@@ -837,6 +837,19 @@ async function main() {
         if (mentor) mentorId = mentor.id;
       }
 
+      // Map beautiful historical createdAt dates so they fall in Dec 2025 - May 2026
+      let customCreatedAt = new Date();
+      if (studentData.name === 'John Doe') customCreatedAt = new Date('2025-12-15T10:00:00Z');
+      else if (studentData.name === 'Jane Smith') customCreatedAt = new Date('2026-01-20T10:00:00Z');
+      else if (studentData.name === 'Sarah Wilson') customCreatedAt = new Date('2026-01-28T10:00:00Z');
+      else if (studentData.name === 'Alex Chen') customCreatedAt = new Date('2026-02-10T10:00:00Z');
+      else if (studentData.name === 'Robert Kim') customCreatedAt = new Date('2026-02-22T10:00:00Z');
+      else if (studentData.name === 'Emily Brown') customCreatedAt = new Date('2026-03-05T10:00:00Z');
+      else if (studentData.name === 'Maria Garcia') customCreatedAt = new Date('2026-03-18T10:00:00Z');
+      else if (studentData.name === 'David Lee') customCreatedAt = new Date('2026-04-08T10:00:00Z');
+      else if (studentData.name === 'Lisa Chen') customCreatedAt = new Date('2026-04-20T10:00:00Z');
+      else if (studentData.name === 'Mike Johnson') customCreatedAt = new Date('2026-05-05T10:00:00Z');
+
       // Create student
       const student = await prisma.student.create({
         data: {
@@ -851,7 +864,12 @@ async function main() {
           lastActive: new Date(),
           phone: studentData.phone,
           address: studentData.address,
-          progress: studentData.progress
+          progress: studentData.progress,
+          bio: (studentData as any).bio || `DMIF Student currently pursuing the ${studentData.program} program on the ${studentData.track} track. Aspiring developer and researcher passionate about software engineering, building AI systems, and creating impactful outcomes.`,
+          website: (studentData as any).website || `https://${studentData.name.toLowerCase().replace(/ /g, '')}.innovation.dev`,
+          linkedin: (studentData as any).linkedin || `https://linkedin.com/in/${studentData.name.toLowerCase().replace(/ /g, '-')}`,
+          github: (studentData as any).github || `https://github.com/dmif-${studentData.name.toLowerCase().replace(/ /g, '-')}`,
+          createdAt: customCreatedAt
         }
       });
       studentMap.set(studentData.name, student);
@@ -869,6 +887,15 @@ async function main() {
 
       // Create outcomes - using the mapping function
       for (const outcomeData of studentData.outcomes) {
+        // Distribute outcome creation dates beautifully
+        let outcomeCreatedAt = new Date();
+        if (outcomeData.title.includes('Chatbot')) outcomeCreatedAt = new Date('2025-12-20T12:00:00Z');
+        else if (outcomeData.title.includes('Patent Search')) outcomeCreatedAt = new Date('2026-01-25T12:00:00Z');
+        else if (outcomeData.title.includes('Advances in Agentic')) outcomeCreatedAt = new Date('2026-02-15T12:00:00Z');
+        else if (outcomeData.title.includes('Ethical Considerations')) outcomeCreatedAt = new Date('2026-03-10T12:00:00Z');
+        else if (outcomeData.title.includes('Education Platform')) outcomeCreatedAt = new Date('2026-03-22T12:00:00Z');
+        else if (outcomeData.title.includes('Specialist')) outcomeCreatedAt = new Date('2026-04-15T12:00:00Z');
+
         await prisma.outcome.create({
           data: {
             type: outcomeData.type as OutcomeType,
@@ -880,7 +907,8 @@ async function main() {
             date: new Date(outcomeData.date),
             program: getProgramEnum(studentData.program), // Use mapping function
             tags: [outcomeData.type.toLowerCase()],
-            metadata: outcomeData.type === 'PATENT' ? { applicationNumber: `US2024/${Math.floor(Math.random() * 100000)}` } : {}
+            metadata: outcomeData.type === 'PATENT' ? { applicationNumber: `US2024/${Math.floor(Math.random() * 100000)}` } : {},
+            createdAt: outcomeCreatedAt
           }
         });
       }

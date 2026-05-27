@@ -11,6 +11,74 @@ const reportService = new ReportGenerationService();
 const exportService = new ExportService();
 
 export class ReportController {
+  // Admin: list all generated weekly reports across all students
+  async getAllGeneratedReports(req: AuthRequest, res: Response) {
+    try {
+      const { limit = 20, offset = 0, type, dateRange } = req.query;
+
+      const where: any = {};
+
+      // dateRange filter in days
+      if (dateRange && dateRange !== 'all') {
+        const days = parseInt(dateRange as string);
+        if (!isNaN(days)) {
+          const cutoff = new Date();
+          cutoff.setDate(cutoff.getDate() - days);
+          where.generatedAt = { gte: cutoff };
+        }
+      }
+
+      const [reports, total] = await Promise.all([
+        prisma.weeklyReport.findMany({
+          where,
+          include: {
+            student: {
+              select: {
+                name: true,
+                program: { select: { name: true } },
+                track: { select: { name: true } }
+              }
+            }
+          },
+          orderBy: { generatedAt: 'desc' },
+          take: Number(limit),
+          skip: Number(offset)
+        }),
+        prisma.weeklyReport.count({ where })
+      ]);
+
+      const mapped = reports.map((r) => ({
+        id: r.id,
+        name: `Weekly Report — ${r.student.name} (${new Date(r.weekStart).toLocaleDateString()} – ${new Date(r.weekEnd).toLocaleDateString()})`,
+        type: 'weekly' as const,
+        generatedAt: r.generatedAt.toISOString(),
+        generatedBy: 'System',
+        format: 'pdf' as const,
+        size: '—',
+        student: r.student.name,
+        program: r.student.program?.name,
+        track: r.student.track?.name,
+        weekStart: r.weekStart,
+        weekEnd: r.weekEnd,
+        attendanceRate: r.attendanceRate,
+        performanceAvg: r.performanceAvg,
+      }));
+
+      res.json({
+        data: mapped,
+        pagination: {
+          total,
+          limit: Number(limit),
+          offset: Number(offset),
+          hasMore: Number(offset) + reports.length < total
+        }
+      });
+    } catch (error) {
+      console.error('Get all generated reports error:', error);
+      res.status(500).json({ error: 'Failed to fetch generated reports' });
+    }
+  }
+
   async getStudentWeeklyReports(req: AuthRequest, res: Response) {
     try {
       const { studentId } = req.params;

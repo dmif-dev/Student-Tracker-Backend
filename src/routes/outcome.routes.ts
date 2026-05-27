@@ -31,6 +31,7 @@ router.get('/program/:program/summary', authenticate, outcomeController.getProgr
 router.get('/analytics/dashboard', authenticate, outcomeController.getDashboardStats);
 router.get('/analytics/trends', authenticate, outcomeController.getOutcomeTrends);
 router.get('/analytics/insights', authenticate, authorize('ADMIN'), outcomeController.generateInsights);
+router.get('/analytics/admin', authenticate, authorize('ADMIN'), outcomeController.getAdminAnalytics);
 
 // ==================== Interaction Tracking ====================
 router.post('/:id/interact', authenticate, outcomeController.trackInteraction);

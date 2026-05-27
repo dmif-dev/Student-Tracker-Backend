@@ -185,6 +185,8 @@ export class StudentController {
           joinDate: data.joinDate ? new Date(data.joinDate) : new Date(),
           phone: data.phone,
           address: data.address,
+          additionalNotes: data.notes || data.additionalNotes || null,
+          bio: data.bio || null,
         },
         include: {
           program: true, track: true
@@ -245,6 +247,9 @@ export class StudentController {
       if (data.joinDate !== undefined) updateData.joinDate = new Date(data.joinDate);
       if (data.phone !== undefined) updateData.phone = data.phone;
       if (data.address !== undefined) updateData.address = data.address;
+      if (data.notes !== undefined) updateData.additionalNotes = data.notes;
+      else if (data.additionalNotes !== undefined) updateData.additionalNotes = data.additionalNotes;
+      if (data.bio !== undefined) updateData.bio = data.bio;
       
       if (programId !== undefined) updateData.programId = programId;
       if (trackId !== undefined) updateData.trackId = trackId;

@@ -12,7 +12,7 @@ router.get('/profile', async (req: AuthRequest, res) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const student = await prisma.student.findUnique({
+    let student = await prisma.student.findUnique({
       where: { userId },
       include: {
         program: true,
@@ -22,7 +22,82 @@ router.get('/profile', async (req: AuthRequest, res) => {
       }
     });
 
-    if (!student) return res.status(404).json({ error: 'Profile not found' });
+    if (!student) {
+      console.log(`⚠️ Student profile not found for user ${userId}. Creating profile in DB strictly without running seed file...`);
+      
+      const firstProgram = await prisma.program.findFirst() || await prisma.program.create({
+        data: {
+          name: 'G-CMP',
+          description: 'Global Guided Mentorship Program',
+          icon: 'Brain',
+          color: 'purple',
+          hasMentors: true,
+          hasOutcomes: true,
+          duration: '12 months'
+        }
+      });
+
+      const firstTrack = await prisma.track.findFirst({
+        where: { programId: firstProgram.id }
+      }) || await prisma.track.create({
+        data: {
+          name: 'AI Product Development',
+          description: 'Learn to build AI-powered products',
+          programId: firstProgram.id,
+          requiresMentor: true
+        }
+      });
+
+      // Initialize the student profile record in PostgreSQL
+      student = await prisma.student.create({
+        data: {
+          userId,
+          name: req.user?.user_metadata?.name || req.user?.email?.split('@')[0] || 'Student User',
+          registrationNumber: `DMIF${new Date().getFullYear()}${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+          programId: firstProgram.id,
+          trackId: firstTrack.id,
+          status: 'ACTIVE',
+          joinDate: new Date(),
+          lastActive: new Date(),
+          progress: 0,
+          phone: '',
+          address: '',
+          avatar: '/assets/student-profile.jpg',
+          bio: 'DMIF Student passionate about software engineering, building AI systems, and creating impactful outcomes.',
+          website: '',
+          linkedin: '',
+          github: '',
+        },
+        include: {
+          program: true,
+          track: true,
+          mentor: { include: { user: true } },
+          user: true,
+        }
+      });
+
+      // Create dashboard stats
+      await prisma.dashboardStats.create({
+        data: {
+          studentId: student.id,
+          totalSessions: 0,
+          totalProgress: 0,
+          currentStreak: 0,
+          maxStreak: 0
+        }
+      });
+
+      console.log(`✅ Automatically created new student profile: ${student.name} in DB successfully.`);
+    }
+
+    // Dynamically calculate statistics from database
+    const [patents, papers, products, startups, sessionCount] = await Promise.all([
+      prisma.outcome.count({ where: { studentId: student.id, type: 'PATENT' } }),
+      prisma.outcome.count({ where: { studentId: student.id, type: 'PAPER' } }),
+      prisma.outcome.count({ where: { studentId: student.id, type: 'PROJECT' } }),
+      prisma.outcome.count({ where: { studentId: student.id, type: 'STARTUP' } }),
+      prisma.session.count({ where: { studentId: student.id } }),
+    ]);
     
     // Format to match what frontend expects
     const profile = {
@@ -33,7 +108,7 @@ router.get('/profile', async (req: AuthRequest, res) => {
         email: student.user?.email || '',
         phone: student.phone || '',
         location: student.address || '',
-        bio: 'Student at DMIF', // Not in DB yet
+        bio: student.bio || `DMIF Student currently pursuing the ${student.program?.name || 'G-GMP'} program on the ${student.track?.name || 'Patent Track'} track. Passionate about software engineering, building AI systems, and creating impactful outcomes.`,
         avatar: student.avatar || '/assets/student-profile.jpg',
         joinDate: student.joinDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
         programTrack: student.track?.name || student.program?.name || 'Unknown',
@@ -42,16 +117,16 @@ router.get('/profile', async (req: AuthRequest, res) => {
         mentor: student.mentor?.name || 'Unassigned',
         mentorEmail: student.mentor?.user?.email || '',
         mentorDetails: student.mentor || null,
-        website: '',
-        linkedin: '',
-        github: '',
+        website: student.website || '',
+        linkedin: student.linkedin || '',
+        github: student.github || '',
         stats: {
-            patentsCreated: 0,
-            paperPublished: 0,
-            productDeployed: 0,
-            venturesStarted: 0,
+            patentsCreated: patents,
+            paperPublished: papers,
+            productDeployed: products,
+            venturesStarted: startups,
             brainScore: student.progress || 0,
-            mentorshipSessions: 0,
+            mentorshipSessions: sessionCount,
         }
     };
     
@@ -67,7 +142,7 @@ router.put('/profile', async (req: AuthRequest, res) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { firstName, lastName, phone, location } = req.body;
+    const { firstName, lastName, phone, location, bio, website, linkedin, github } = req.body;
     const fullName = `${firstName || ''} ${lastName || ''}`.trim();
 
     const student = await prisma.student.update({
@@ -76,6 +151,10 @@ router.put('/profile', async (req: AuthRequest, res) => {
         name: fullName || undefined,
         phone,
         address: location,
+        bio,
+        website,
+        linkedin,
+        github,
       }
     });
     

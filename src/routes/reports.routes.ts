@@ -8,6 +8,9 @@ import { reportValidator, scheduleValidator } from '../validators/report.validat
 const router = Router();
 const reportController = new ReportController();
 
+// Admin: list all generated reports across all students
+router.get('/admin/generated', authenticate, authorize('ADMIN'), reportController.getAllGeneratedReports);
+
 // Weekly reports
 router.get('/weekly/student/:studentId', authenticate, reportController.getStudentWeeklyReports);
 router.get('/weekly/:id', authenticate, reportController.getWeeklyReportById);

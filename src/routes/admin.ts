@@ -22,16 +22,12 @@ const upload = multer({
     const allowedTypes = [
       'application/pdf',
       'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'text/plain',
-      'image/jpeg',
-      'image/png',
-      'application/zip'
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     ];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type') as any, false);
+      cb(new Error('Only PDF and DOC/DOCX files are allowed') as any, false);
     }
   }
 });

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { uploadToSupabase } from '../lib/supabaseStorage.js';
+import { DocumentType, ProgramType, DocumentVisibility } from '@prisma/client';
 
 export class AdminDocumentsController {
   async getDocuments(req: Request, res: Response) {
@@ -57,6 +58,10 @@ export class AdminDocumentsController {
         visibility, metadata, permissions
       } = req.body;
 
+      if (!title || !mentorId || !type || !program || !visibility) {
+        return res.status(400).json({ error: 'Missing required fields for document upload' });
+      }
+
       // Parse JSON strings back into objects since FormData sends them as strings
       let parsedMetadata = metadata;
       if (typeof metadata === 'string') {
@@ -76,11 +81,38 @@ export class AdminDocumentsController {
 
       const adminId = (req as any).user?.id || 'admin';
 
-      const programType = program === 'G-CMP' ? 'G_CMP' : 'E_TIP';
-      const docTypeEnum = type === 'learning_material' ? 'LEARNING_MATERIAL' : 
-                         type === 'assignment_material' ? 'ASSIGNMENT_MATERIAL' : 'PRE_READING_MATERIAL';
-      const visibilityEnum = visibility === 'student_only' ? 'STUDENT_ONLY' :
-                             visibility === 'mentor_only' ? 'MENTOR_ONLY' : 'BOTH';
+      const programMap: Record<string, string> = {
+        'G-GMP': 'G_GMP',
+        'G_CMP': 'G_CMP',
+        'G-CMP': 'G_CMP',
+        'E_TIP': 'E_TIP',
+        'E-TIP': 'E_TIP',
+        'PCP': 'PCP'
+      };
+      const typeMap: Record<string, string> = {
+        learning_material: 'LEARNING_MATERIAL',
+        assignment_material: 'ASSIGNMENT_MATERIAL',
+        pre_reading_material: 'PRE_READING_MATERIAL',
+        LEARNING_MATERIAL: 'LEARNING_MATERIAL',
+        ASSIGNMENT_MATERIAL: 'ASSIGNMENT_MATERIAL',
+        PRE_READING_MATERIAL: 'PRE_READING_MATERIAL'
+      };
+      const visibilityMap: Record<string, string> = {
+        student_only: 'STUDENT_ONLY',
+        mentor_only: 'MENTOR_ONLY',
+        both: 'BOTH',
+        STUDENT_ONLY: 'STUDENT_ONLY',
+        MENTOR_ONLY: 'MENTOR_ONLY',
+        BOTH: 'BOTH'
+      };
+
+      const programType = (programMap[String(program)] || null) as ProgramType | null;
+      const docTypeEnum = (typeMap[String(type)] || null) as DocumentType | null;
+      const visibilityEnum = (visibilityMap[String(visibility)] || null) as DocumentVisibility | null;
+
+      if (!programType || !docTypeEnum || !visibilityEnum) {
+        return res.status(400).json({ error: 'Invalid program, type, or visibility value' });
+      }
 
       const document = await prisma.document.create({
         data: {
@@ -131,9 +163,9 @@ export class AdminDocumentsController {
       }
 
       res.status(201).json(document);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      res.status(500).json({ error: 'Failed to upload document' });
+      res.status(500).json({ error: error?.message || 'Failed to upload document' });
     }
   }
 

@@ -252,6 +252,11 @@ model Student {
   address            String?
   avatar             String?
   progress           Int           @default(0)
+  bio                String?
+  additionalNotes    String?       @map("AdditionalNotes")
+  website            String?
+  linkedin           String?
+  github             String?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
