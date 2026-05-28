@@ -210,11 +210,22 @@ export class MentorController {
         return res.status(400).json({ error: 'Mentor ID required' });
       }
 
-      const updates = req.body;
+      const { email, ...updates } = req.body;
+
+      if (updates.joinDate) {
+        updates.joinDate = new Date(updates.joinDate);
+      }
 
       const mentor = await prisma.mentor.update({
         where: { id: mentorId },
-        data: updates,
+        data: {
+          ...updates,
+          ...(email && {
+            user: {
+              update: { email }
+            }
+          })
+        },
         include: {
           user: true
         }

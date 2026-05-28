@@ -55,10 +55,21 @@ export class MentorService {
             where: { uploadedById: mentorId }
         });
 
+        // Calculate today's sessions
+        const today = new Date();
+        const startOfDay = new Date(today.setHours(0,0,0,0));
+        const endOfDay = new Date(today.setHours(23,59,59,999));
+        
+        const todaySessions = mentor.sessions.filter(s => {
+            const sessionDate = new Date(s.date);
+            return sessionDate >= startOfDay && sessionDate <= endOfDay;
+        }).length;
+
         return {
             totalStudents,
             activeStudents,
             totalSessions,
+            todaySessions,
             averageStudentProgress,
             totalOutcomes,
             completionRate: Math.round(completionRate),

@@ -25,6 +25,7 @@ import assignmentRoutes from './routes/assignment.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 import emailRoutes from './routes/email.js';
 import notificationRoutes from './routes/notification.routes.js';
+import tagsRoutes from './routes/tags.routes.js';
 
 // Auth and user routes (using Supabase)
 import userRoutes from './routes/user.js';
@@ -107,6 +108,7 @@ app.use('/api/assignments', assignmentRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/tags', tagsRoutes);
 
 // Auth & User routes (Supabase-based)
 app.use('/api/user', userRoutes);
