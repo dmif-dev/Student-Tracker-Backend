@@ -11,6 +11,29 @@ const reportService = new ReportGenerationService();
 const exportService = new ExportService();
 
 export class ReportController {
+  // Get report templates
+  async getReportTemplates(req: AuthRequest, res: Response) {
+    const templates = [
+      {
+        id: 'weekly-progress',
+        name: 'Weekly Progress Report',
+        description: 'Student progress, attendance, and activity for the week',
+        icon: 'Clock', // Frontend handles icon mapping
+        color: 'blue',
+        href: '/admin/reports/generate?template=weekly-progress',
+      },
+      {
+        id: 'monthly-analytics',
+        name: 'Monthly Analytics Report',
+        description: 'Comprehensive analytics including trends and outcomes',
+        icon: 'TrendingUp',
+        color: 'green',
+        href: '/admin/reports/generate?template=monthly-analytics',
+      },
+    ];
+    res.json(templates);
+  }
+
   // Admin: list all generated weekly reports across all students
   async getAllGeneratedReports(req: AuthRequest, res: Response) {
     try {

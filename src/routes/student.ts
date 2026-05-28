@@ -165,7 +165,86 @@ router.put('/profile', async (req: AuthRequest, res) => {
     res.json({ success: true, student });
   } catch (error) {
     console.error('Error updating profile:', error);
-    res.status(500).json({ error: 'Failed to update profile' });
+    res.status(500).json({ error: 'Failed to update preferences' });
+  }
+});
+
+// ==================== Personal Events ====================
+router.get('/events', async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const student = await prisma.student.findUnique({ where: { userId } });
+    if (!student) return res.status(404).json({ error: 'Student not found' });
+
+    const events = await prisma.personalEvent.findMany({
+      where: { studentId: student.id },
+      orderBy: { date: 'asc' }
+    });
+
+    res.json(events);
+  } catch (error) {
+    console.error('Error fetching personal events:', error);
+    res.status(500).json({ error: 'Failed to fetch personal events' });
+  }
+});
+
+router.post('/events', async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const student = await prisma.student.findUnique({ where: { userId } });
+    if (!student) return res.status(404).json({ error: 'Student not found' });
+
+    const { title, date, startTime, endTime, link } = req.body;
+    
+    if (!title || !date || !startTime || !endTime) {
+      return res.status(400).json({ error: 'Missing required event fields' });
+    }
+
+    const newEvent = await prisma.personalEvent.create({
+      data: {
+        title,
+        date: new Date(date),
+        startTime,
+        endTime,
+        link,
+        studentId: student.id
+      }
+    });
+
+    res.status(201).json(newEvent);
+  } catch (error) {
+    console.error('Error creating personal event:', error);
+    res.status(500).json({ error: 'Failed to create personal event' });
+  }
+});
+
+router.delete('/events/:id', async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const student = await prisma.student.findUnique({ where: { userId } });
+    if (!student) return res.status(404).json({ error: 'Student not found' });
+
+    const { id } = req.params;
+
+    const event = await prisma.personalEvent.findUnique({ where: { id } });
+    if (!event) return res.status(404).json({ error: 'Event not found' });
+    
+    if (event.studentId !== student.id) {
+       return res.status(403).json({ error: 'Access denied' });
+    }
+
+    await prisma.personalEvent.delete({ where: { id } });
+
+    res.json({ message: 'Event deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting personal event:', error);
+    res.status(500).json({ error: 'Failed to delete personal event' });
   }
 });
 

@@ -11,6 +11,9 @@ const reportController = new ReportController();
 // Admin: list all generated reports across all students
 router.get('/admin/generated', authenticate, authorize('ADMIN'), reportController.getAllGeneratedReports);
 
+// Templates
+router.get('/templates', authenticate, reportController.getReportTemplates);
+
 // Weekly reports
 router.get('/weekly/student/:studentId', authenticate, reportController.getStudentWeeklyReports);
 router.get('/weekly/:id', authenticate, reportController.getWeeklyReportById);

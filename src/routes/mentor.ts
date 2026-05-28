@@ -59,6 +59,7 @@ router.put('/profile', validate(mentorValidator), mentorController.updateMentor)
 router.put('/profile/me', mentorController.updateProfile);
 router.post('/profile/avatar', upload.single('avatar'), mentorController.uploadAvatar);
 router.get('/stats', mentorController.getMentorStats);
+router.get('/activity', mentorController.getMentorActivity);
 
 
 // ==================== Student Management ====================

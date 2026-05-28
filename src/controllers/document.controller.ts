@@ -268,6 +268,12 @@ export class DocumentController {
       // Fetch file buffer from Supabase Storage
       const fileBuffer = await downloadFromSupabase(document.fileUrl);
 
+      // Track download
+      await prisma.document.update({
+        where: { id },
+        data: { downloads: { increment: 1 } }
+      }).catch(e => console.warn('Failed to track download:', e));
+
       res.setHeader('Content-Disposition', `attachment; filename="${document.fileName}"`);
       res.setHeader('Content-Type', document.fileType);
       res.setHeader('Content-Length', fileBuffer.length);
@@ -302,6 +308,12 @@ export class DocumentController {
 
       // Fetch file buffer from Supabase Storage
       const fileBuffer = await downloadFromSupabase(document.fileUrl);
+
+      // Track view
+      await prisma.document.update({
+        where: { id },
+        data: { views: { increment: 1 } }
+      }).catch(e => console.warn('Failed to track view:', e));
 
       if (document.fileType === 'application/pdf') {
         res.setHeader('Content-Type', 'application/pdf');

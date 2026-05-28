@@ -99,6 +99,7 @@ export class MentorController {
               program: true,
               track: true,
               user: { select: { email: true } },
+              outcomes: true,
               _count: {
                 select: {
                   documentPermissions: true,
@@ -1605,6 +1606,92 @@ export class MentorController {
     } catch (error) {
       console.error('Update settings error:', error);
       res.status(500).json({ error: 'Failed to update settings' });
+    }
+  }
+
+  async getMentorActivity(req: AuthRequest, res: Response) {
+    try {
+      let mentorId = req.params.id;
+      if (!mentorId && req.user?.mentor?.id) {
+        mentorId = req.user.mentor.id;
+      }
+
+      if (!mentorId) {
+        return res.status(400).json({ error: 'Mentor ID required' });
+      }
+
+      const [documents, schedule, students] = await Promise.all([
+        prisma.document.findMany({
+          where: { uploadedById: mentorId },
+          orderBy: { createdAt: 'desc' },
+          take: 5
+        }),
+        prisma.session.findMany({
+          where: { mentorId },
+          include: { student: true },
+          orderBy: { updatedAt: 'desc' },
+          take: 5
+        }),
+        prisma.student.findMany({
+          where: { mentorId },
+          orderBy: { joinDate: 'desc' },
+          take: 5
+        })
+      ]);
+
+      const activities: any[] = [];
+      
+      documents.forEach(doc => {
+        activities.push({
+          id: `doc-${doc.id}`,
+          type: 'document_uploaded',
+          title: `Uploaded ${doc.title}`,
+          date: doc.createdAt,
+          time: doc.createdAt
+        });
+      });
+
+      schedule.forEach(session => {
+        if (session.status === 'COMPLETED') {
+          activities.push({
+            id: `session-comp-${session.id}`,
+            type: 'session_completed',
+            title: `Completed session with ${session.student.name}`,
+            date: session.updatedAt,
+            time: session.updatedAt,
+            student: session.student.name
+          });
+        } else if (session.status === 'SCHEDULED') {
+          activities.push({
+            id: `session-sched-${session.id}`,
+            type: 'student_joined',
+            title: `Scheduled session with ${session.student.name}`,
+            date: session.createdAt,
+            time: session.createdAt,
+            student: session.student.name
+          });
+        }
+      });
+
+      students.forEach(student => {
+        activities.push({
+          id: `student-${student.id}`,
+          type: 'student_joined',
+          title: `New student assigned: ${student.name}`,
+          date: student.joinDate,
+          time: student.joinDate,
+          student: student.name
+        });
+      });
+
+      // Sort all activities by date descending
+      activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      // Return only top 5 activities
+      res.json(activities.slice(0, 5));
+    } catch (error) {
+      console.error('Get mentor activity error:', error);
+      res.status(500).json({ error: 'Failed to fetch mentor activity' });
     }
   }
 
