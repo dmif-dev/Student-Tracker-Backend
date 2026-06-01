@@ -759,7 +759,7 @@ export class AnalyticsService {
       const rate = trackStudents.length > 0 ? Math.round((completed / trackStudents.length) * 100) : 0;
       return {
         track: t.name,
-        completionRate: rate || 50,
+        completionRate: rate,
         students: trackStudents.length
       };
     });

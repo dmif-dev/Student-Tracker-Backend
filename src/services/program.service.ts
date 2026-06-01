@@ -9,7 +9,11 @@ export class ProgramService {
       include: {
         tracks: {
           include: {
-            students: true
+            students: {
+              include: {
+                outcomes: true
+              }
+            }
           }
         },
         students: true
@@ -26,14 +30,21 @@ export class ProgramService {
       ? program.students.reduce((sum, s) => sum + s.progress, 0) / totalStudents
       : 0;
 
-    const trackMetrics = program.tracks.map(track => ({
-      trackId: track.id,
-      trackName: track.name,
-      studentCount: track.students.length,
-      averageProgress: track.students.length > 0
-        ? track.students.reduce((sum, s) => sum + s.progress, 0) / track.students.length
-        : 0
-    }));
+    const trackMetrics = program.tracks.map(track => {
+      const studentCount = track.students.length;
+      const averageProgress = studentCount > 0
+        ? track.students.reduce((sum, s) => sum + s.progress, 0) / studentCount
+        : 0;
+      const outcomesCount = track.students.reduce((sum, s) => sum + (s.outcomes?.length || 0), 0);
+
+      return {
+        trackId: track.id,
+        trackName: track.name,
+        studentCount,
+        averageProgress,
+        outcomesCount
+      };
+    });
 
     return {
       totalStudents,
