@@ -1,11 +1,619 @@
-// backend/prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+model User {
+  id                     String            @id @default(cuid())
+  email                  String            @unique
+  password               String
+  role                   UserRole
+  isActive               Boolean           @default(true)
+  lastLogin              DateTime?
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+  emailVerificationToken String?
+  emailVerified          Boolean           @default(false)
+  passwordResetExpires   DateTime?
+  passwordResetToken     String?
+  preferences            Json?
+  refreshToken           String?
+  adminProfile           Admin?
+  apiKeys                ApiKey[]
+  auditLogs              AuditLog[]
+  importJobs             BulkImportJob[]
+  dashboards             Dashboard[]
+  mentor                 Mentor?
+  notifications          Notification[]    @relation("UserNotifications")
+  savedReports           SavedReport[]
+  scheduledReports       ScheduledReport[]
+  student                Student?
+  activities             UserActivity[]
+  sessions               UserSession[]
+}
+
+model UserActivity {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  metadata  Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Program {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  icon        String?
+  color       String?
+  hasMentors  Boolean   @default(false)
+  hasOutcomes Boolean   @default(false)
+  duration    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  students    Student[]
+  tracks      Track[]
+}
+
+model Track {
+  id             String    @id @default(cuid())
+  name           String
+  description    String?
+  programId      String
+  requiresMentor Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  students       Student[]
+  program        Program   @relation(fields: [programId], references: [id])
+
+  @@unique([name, programId])
+}
+
+model UserSession {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String   @unique
+  deviceInfo   String?
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  lastActiveAt DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model Admin {
+  id            String         @id @default(cuid())
+  userId        String         @unique
+  name          String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  user          User           @relation(fields: [userId], references: [id])
+  announcements Announcement[]
+}
+
+model Announcement {
+  id        String    @id @default(cuid())
+  title     String
+  content   String
+  target    String
+  priority  String
+  createdBy String
+  isActive  Boolean   @default(true)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  admin     Admin     @relation(fields: [createdBy], references: [id])
+}
+
+model Student {
+  id                  String               @id @default(cuid())
+  userId              String               @unique
+  registrationNumber  String               @unique
+  name                String
+  mentorId            String?
+  status              StudentStatus        @default(PENDING)
+  joinDate            DateTime
+  lastActive          DateTime             @default(now())
+  phone               String?
+  address             String?
+  avatar              String?
+  progress            Int                  @default(0)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  programId           String
+  trackId             String
+  bio                 String?
+  github              String?
+  linkedin            String?
+  website             String?
+  AdditionalNotes     String?
+  achievements        Achievement[]
+  dailyProgress       DailyProgress[]
+  dashboardStats      DashboardStats?
+  documentPermissions DocumentPermission[] @relation("StudentDocumentPermissions")
+  notifications       Notification[]       @relation("StudentNotifications")
+  outcomes            Outcome[]
+  PersonalEvent       PersonalEvent[]
+  sessions            Session[]
+  mentor              Mentor?              @relation("MentorToStudents", fields: [mentorId], references: [id])
+  program             Program              @relation(fields: [programId], references: [id])
+  track               Track                @relation(fields: [trackId], references: [id])
+  user                User                 @relation(fields: [userId], references: [id])
+  studentTags         StudentTag[]
+  submissions         Submission[]
+  tagAssignments      TagAssignment[]      @relation("StudentTags")
+  weeklyReports       WeeklyReport[]
+}
+
+model Mentor {
+  id               String            @id @default(cuid())
+  userId           String            @unique
+  name             String
+  expertise        String[]
+  students         Int               @default(0)
+  programs         ProgramType[]
+  rating           Float             @default(0)
+  status           MentorStatus      @default(ACTIVE)
+  joinDate         DateTime
+  bio              String?
+  phone            String?
+  location         String?
+  avatar           String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  assignments      Assignment[]
+  availability     Availability[]
+  documents        Document[]
+  folders          Folder[]          @relation("MentorFolders")
+  user             User              @relation(fields: [userId], references: [id])
+  preferences      MentorPreference?
+  notifications    Notification[]    @relation("MentorNotifications")
+  outcomes         Outcome[]         @relation("MentorOutcomes")
+  sessions         Session[]
+  assignedStudents Student[]         @relation("MentorToStudents")
+}
+
+model MentorPreference {
+  id                   String   @id @default(cuid())
+  mentorId             String   @unique
+  sessionDuration      Int      @default(60)
+  bufferTime           Int      @default(15)
+  autoAccept           Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  notificationSettings Json?
+  privacySettings      Json?
+  mentor               Mentor   @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+}
+
+model Availability {
+  id           String    @id @default(cuid())
+  mentorId     String
+  dayOfWeek    Int
+  startTime    String
+  endTime      String
+  isRecurring  Boolean   @default(true)
+  specificDate DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  mentor       Mentor    @relation(fields: [mentorId], references: [id])
+}
+
+model Session {
+  id          String        @id @default(cuid())
+  studentId   String
+  mentorId    String
+  date        DateTime
+  startTime   String
+  endTime     String
+  status      SessionStatus @default(SCHEDULED)
+  topic       String
+  meetingLink String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  mentor      Mentor        @relation(fields: [mentorId], references: [id])
+  student     Student       @relation(fields: [studentId], references: [id])
+  notes       SessionNote[]
+}
+
+model SessionNote {
+  id        String   @id @default(cuid())
+  sessionId String
+  content   String
+  topics    String[]
+  duration  Int?
+  feedback  String?
+  nextSteps String?
+  resources String[]
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  session   Session  @relation(fields: [sessionId], references: [id])
+}
+
+model DailyProgress {
+  id                String           @id @default(cuid())
+  studentId         String
+  date              DateTime
+  notes             String?
+  topicsCovered     String[]
+  attendanceStatus  AttendanceStatus @default(PRESENT)
+  performanceRating Int?
+  attachments       String[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  student           Student          @relation(fields: [studentId], references: [id])
+}
+
+model WeeklyReport {
+  id                  String   @id @default(cuid())
+  studentId           String
+  weekStart           DateTime
+  weekEnd             DateTime
+  summary             String
+  strengths           String[]
+  areasForImprovement String[]
+  attendanceRate      Float
+  topicsCovered       String[]
+  performanceAvg      Float?
+  fileUrl             String?
+  generatedAt         DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  student             Student  @relation(fields: [studentId], references: [id])
+}
+
+model Document {
+  id           String               @id @default(cuid())
+  title        String
+  description  String?
+  type         DocumentType
+  fileName     String
+  fileSize     Int
+  fileType     String
+  fileUrl      String
+  uploadedById String
+  program      ProgramType
+  track        String?
+  visibility   DocumentVisibility
+  status       DocumentStatus       @default(PUBLISHED)
+  metadata     Json?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  folderId     String?
+  downloads    Int                  @default(0)
+  views        Int                  @default(0)
+  assignments  Assignment[]
+  folder       Folder?              @relation("FolderDocuments", fields: [folderId], references: [id])
+  uploadedBy   Mentor               @relation(fields: [uploadedById], references: [id])
+  permissions  DocumentPermission[]
+}
+
+model Folder {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  program     ProgramType
+  track       String?
+  createdBy   String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  documents   Document[]  @relation("FolderDocuments")
+  mentor      Mentor      @relation("MentorFolders", fields: [createdBy], references: [id])
+}
+
+model DocumentPermission {
+  id          String    @id @default(cuid())
+  documentId  String
+  userId      String
+  userRole    UserRole
+  canView     Boolean   @default(true)
+  canDownload Boolean   @default(true)
+  grantedBy   String
+  grantedAt   DateTime  @default(now())
+  expiresAt   DateTime?
+  document    Document  @relation(fields: [documentId], references: [id])
+  student     Student   @relation("StudentDocumentPermissions", fields: [userId], references: [id])
+
+  @@unique([documentId, userId])
+}
+
+model Assignment {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  documentId  String
+  dueDate     DateTime
+  points      Int          @default(100)
+  program     ProgramType
+  track       String?
+  mentorId    String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  document    Document     @relation(fields: [documentId], references: [id])
+  mentor      Mentor       @relation(fields: [mentorId], references: [id])
+  submissions Submission[]
+}
+
+model Submission {
+  id           String           @id @default(cuid())
+  assignmentId String
+  studentId    String
+  content      String?
+  files        String[]
+  status       SubmissionStatus @default(SUBMITTED)
+  grade        Int?
+  feedback     String?
+  gradedBy     String?
+  gradedAt     DateTime?
+  submittedAt  DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  assignment   Assignment       @relation(fields: [assignmentId], references: [id])
+  student      Student          @relation(fields: [studentId], references: [id])
+
+  @@unique([assignmentId, studentId])
+}
+
+model Outcome {
+  id          String            @id @default(cuid())
+  type        OutcomeType
+  title       String
+  description String?
+  studentId   String
+  mentorId    String?
+  status      OutcomeStatus     @default(PENDING)
+  date        DateTime
+  program     ProgramType
+  metadata    Json?
+  files       String[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  externalUrl String?
+  impact      String?
+  tags        String[]
+  verifiedAt  DateTime?
+  verifiedBy  String?
+  mentor      Mentor?           @relation("MentorOutcomes", fields: [mentorId], references: [id])
+  student     Student           @relation(fields: [studentId], references: [id])
+  analytics   OutcomeAnalytics?
+}
+
+model OutcomeAnalytics {
+  id         String    @id @default(cuid())
+  outcomeId  String    @unique
+  views      Int       @default(0)
+  downloads  Int       @default(0)
+  citations  Int       @default(0)
+  shares     Int       @default(0)
+  lastViewed DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  outcome    Outcome   @relation(fields: [outcomeId], references: [id])
+}
+
+model Achievement {
+  id          String   @id @default(cuid())
+  studentId   String
+  type        String
+  title       String
+  description String?
+  date        DateTime
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  student     Student  @relation(fields: [studentId], references: [id])
+}
+
+model Dashboard {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  config      Json
+  createdBy   String
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [createdBy], references: [id])
+}
+
+model DashboardStats {
+  id            String    @id @default(cuid())
+  studentId     String    @unique
+  totalSessions Int       @default(0)
+  totalProgress Int       @default(0)
+  currentStreak Int       @default(0)
+  maxStreak     Int       @default(0)
+  lastActivity  DateTime?
+  updatedAt     DateTime  @updatedAt
+  student       Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model SavedReport {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  type        String
+  config      Json
+  data        Json?
+  createdBy   String
+  schedule    String?
+  lastRunAt   DateTime?
+  nextRunAt   DateTime?
+  recipients  String[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [createdBy], references: [id])
+}
+
+model Notification {
+  id         String   @id @default(cuid())
+  userId     String
+  studentId  String?
+  mentorId   String?
+  type       String
+  category   String
+  title      String
+  message    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  actionUrl  String?
+  actionText String?
+  metadata   Json?
+  mentor     Mentor?  @relation("MentorNotifications", fields: [mentorId], references: [id])
+  student    Student? @relation("StudentNotifications", fields: [studentId], references: [id])
+  user       User     @relation("UserNotifications", fields: [userId], references: [id])
+}
+
+model Tag {
+  id          String          @id @default(cuid())
+  name        String          @unique
+  slug        String          @unique
+  category    TagCategory
+  color       String?
+  description String?
+  usageCount  Int             @default(0)
+  createdAt   DateTime        @default(now())
+  createdBy   String?
+  assignments TagAssignment[]
+}
+
+model TagAssignment {
+  id         String   @id @default(cuid())
+  tagId      String
+  entityId   String
+  entityType String
+  assignedAt DateTime @default(now())
+  assignedBy String?
+  student    Student  @relation("StudentTags", fields: [entityId], references: [id])
+  tag        Tag      @relation(fields: [tagId], references: [id])
+
+  @@unique([tagId, entityId, entityType])
+}
+
+model StudentTag {
+  id        String   @id @default(cuid())
+  studentId String
+  name      String
+  category  String
+  createdAt DateTime @default(now())
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String
+  entityId   String?
+  oldValue   Json?
+  newValue   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  user       User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model BulkImportJob {
+  id           String       @id @default(cuid())
+  filename     String
+  fileSize     Int
+  rowCount     Int
+  successCount Int          @default(0)
+  errorCount   Int          @default(0)
+  status       ImportStatus @default(PENDING)
+  errors       Json?
+  metadata     Json?
+  createdBy    String
+  createdAt    DateTime     @default(now())
+  completedAt  DateTime?
+  updatedAt    DateTime     @updatedAt
+  user         User         @relation(fields: [createdBy], references: [id])
+}
+
+model ScheduledReport {
+  id         String    @id @default(cuid())
+  name       String
+  frequency  String
+  config     Json
+  recipients String[]
+  isActive   Boolean   @default(true)
+  createdBy  String
+  lastRunAt  DateTime?
+  nextRunAt  DateTime
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  user       User      @relation(fields: [createdBy], references: [id])
+}
+
+model SystemSettings {
+  id        String   @id @default(cuid())
+  category  String   @unique
+  settings  Json
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}
+
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  subject   String
+  body      String
+  variables String[]
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  name       String
+  key        String    @unique
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  createdBy  String
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  user       User      @relation(fields: [createdBy], references: [id])
+}
+
+model Backup {
+  id        String   @id @default(cuid())
+  fileName  String
+  fileSize  Int
+  fileUrl   String
+  status    String   @default("COMPLETED")
+  type      String   @default("MANUAL")
+  createdBy String?
+  createdAt DateTime @default(now())
+}
+
+model PersonalEvent {
+  id        String   @id
+  title     String
+  date      DateTime
+  startTime String
+  endTime   String
+  link      String?
+  studentId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  Student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }
 
 enum ProgramType {
@@ -102,661 +710,3 @@ enum SubmissionStatus {
   MISSING
   RESUBMITTED
 }
-
-// User accounts for authentication
-model User {
-  id        String    @id @default(cuid())
-  email     String    @unique
-  password  String // Hashed
-  role      UserRole
-  isActive  Boolean   @default(true)
-  lastLogin DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  // Relations - One-to-one
-  student      Student?
-  mentor       Mentor?
-  adminProfile Admin?
-
-  // Relations - One-to-many
-  notifications    Notification[]    @relation("UserNotifications")
-  sessions         UserSession[]
-  auditLogs        AuditLog[]
-  importJobs       BulkImportJob[]
-  scheduledReports ScheduledReport[]
-  dashboards       Dashboard[]
-  savedReports     SavedReport[]
-  activities       UserActivity[]
-
-  // Auth fields
-  refreshToken           String?
-  passwordResetToken     String?
-  passwordResetExpires   DateTime?
-  emailVerified          Boolean   @default(false)
-  emailVerificationToken String?
-  preferences            Json?
-
-  apiKeys                ApiKey[]
-}
-
-// Activity Logs (for user activity tracking)
-model UserActivity {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  action    String // 'login', 'progress_added', 'session_joined', etc.
-  metadata  Json?
-  ipAddress String?
-  userAgent String?
-  createdAt DateTime @default(now())
-}
-
-// Program model
-model Program {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  description String?
-  icon        String?
-  color       String?
-  hasMentors  Boolean  @default(false)
-  hasOutcomes Boolean  @default(false)
-  duration    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  tracks   Track[]
-  students Student[] // Students enrolled in this program
-}
-
-// Track model
-model Track {
-  id             String   @id @default(cuid())
-  name           String
-  description    String?
-  programId      String
-  program        Program  @relation(fields: [programId], references: [id])
-  requiresMentor Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  // Relations
-  students Student[] // Students in this track
-
-  @@unique([name, programId])
-}
-
-model UserSession {
-  id           String   @id @default(cuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  token        String   @unique
-  deviceInfo   String?
-  ipAddress    String?
-  userAgent    String?
-  expiresAt    DateTime
-  createdAt    DateTime @default(now())
-  lastActiveAt DateTime @default(now())
-
-  @@index([userId])
-  @@index([token])
-  @@index([expiresAt])
-}
-
-// Admin profile
-model Admin {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id])
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  announcements Announcement[]
-}
-
-// Announcements (for admin to notify all)
-model Announcement {
-  id        String    @id @default(cuid())
-  title     String
-  content   String
-  target    String // 'all', 'students', 'mentors', 'admin'
-  priority  String // 'low', 'medium', 'high'
-  createdBy String
-  admin     Admin     @relation(fields: [createdBy], references: [id])
-  isActive  Boolean   @default(true)
-  expiresAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-}
-
-// Student profile
-model Student {
-  id                 String        @id @default(cuid())
-  userId             String        @unique
-  user               User          @relation(fields: [userId], references: [id])
-  registrationNumber String        @unique
-  name               String
-  programId          String
-  program            Program       @relation(fields: [programId], references: [id])
-  trackId            String
-  track              Track         @relation(fields: [trackId], references: [id])
-  mentorId           String?
-  mentor             Mentor?       @relation("MentorToStudents", fields: [mentorId], references: [id])
-  status             StudentStatus @default(PENDING)
-  joinDate           DateTime
-  lastActive         DateTime      @default(now())
-  phone              String?
-  address            String?
-  avatar             String?
-  progress           Int           @default(0)
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-
-  // Relations
-  dailyProgress       DailyProgress[]
-  weeklyReports       WeeklyReport[]
-  outcomes            Outcome[]
-  documentPermissions DocumentPermission[] @relation("StudentDocumentPermissions")
-  sessions            Session[] // as mentee
-  notifications       Notification[]       @relation("StudentNotifications")
-  tagAssignments      TagAssignment[]      @relation("StudentTags")
-
-  dashboardStats DashboardStats?
-  studentTags    StudentTag[]
-  submissions    Submission[]
-
-  // for achievements
-  achievements Achievement[]
-}
-
-// Mentor profile
-model Mentor {
-  id        String        @id @default(cuid())
-  userId    String        @unique
-  user      User          @relation(fields: [userId], references: [id])
-  name      String
-  expertise String[] // Array of expertise areas
-  students  Int           @default(0)
-  programs  ProgramType[] // Programs they mentor (excluding PCP)
-  rating    Float         @default(0)
-  status    MentorStatus  @default(ACTIVE)
-  joinDate  DateTime
-  bio       String?
-  phone     String?
-  location  String?
-  avatar    String?
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-
-  // Relations
-  assignedStudents Student[]      @relation("MentorToStudents")
-  sessions         Session[] // sessions they conduct
-  availability     Availability[]
-  documents        Document[]
-  notifications    Notification[] @relation("MentorNotifications")
-  outcomes         Outcome[]      @relation("MentorOutcomes")
-  folders          Folder[]       @relation("MentorFolders") // Add this line!
-
-  assignments Assignment[]
-  preferences MentorPreference?
-}
-
-// Mentor Session Preferences
-model MentorPreference {
-  id                   String   @id @default(cuid())
-  mentorId             String
-  mentor               Mentor   @relation(fields: [mentorId], references: [id], onDelete: Cascade)
-  sessionDuration      Int      @default(60) // minutes
-  bufferTime           Int      @default(15) // minutes between sessions
-  autoAccept           Boolean  @default(false)
-  notificationSettings Json?    // stores { emailNotifications, sessionReminders, studentUpdates, documentUploads, weeklyDigest }
-  privacySettings      Json?    // stores { profileVisibility, showEmail, showPhone }
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-
-  @@unique([mentorId])
-}
-
-
-// Mentor availability for scheduling
-model Availability {
-  id           String    @id @default(cuid())
-  mentorId     String
-  mentor       Mentor    @relation(fields: [mentorId], references: [id])
-  dayOfWeek    Int // 0-6 (Sunday-Saturday)
-  startTime    String // "HH:MM" format
-  endTime      String
-  isRecurring  Boolean   @default(true)
-  specificDate DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-}
-
-// Mentoring sessions
-model Session {
-  id          String        @id @default(cuid())
-  studentId   String
-  student     Student       @relation(fields: [studentId], references: [id])
-  mentorId    String
-  mentor      Mentor        @relation(fields: [mentorId], references: [id])
-  date        DateTime
-  startTime   String
-  endTime     String
-  status      SessionStatus @default(SCHEDULED)
-  topic       String
-  meetingLink String?
-  notes       SessionNote[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-}
-
-// Session notes
-model SessionNote {
-  id        String   @id @default(cuid())
-  sessionId String
-  session   Session  @relation(fields: [sessionId], references: [id])
-  content   String
-  topics    String[]
-  duration  Int? // actual duration in minutes
-  feedback  String?
-  nextSteps String?
-  resources String[]
-  createdBy String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// Daily progress entries
-model DailyProgress {
-  id                String           @id @default(cuid())
-  studentId         String
-  student           Student          @relation(fields: [studentId], references: [id])
-  date              DateTime
-  notes             String?
-  topicsCovered     String[]
-  attendanceStatus  AttendanceStatus @default(PRESENT)
-  performanceRating Int? // 1-10 scale
-  attachments       String[] // URLs to uploaded files
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-}
-
-// Weekly reports
-model WeeklyReport {
-  id                  String   @id @default(cuid())
-  studentId           String
-  student             Student  @relation(fields: [studentId], references: [id])
-  weekStart           DateTime
-  weekEnd             DateTime
-  summary             String
-  strengths           String[]
-  areasForImprovement String[]
-  attendanceRate      Float // percentage
-  topicsCovered       String[]
-  performanceAvg      Float? // average rating
-  generatedAt         DateTime @default(now())
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-}
-
-// Documents/learning materials
-model Document {
-  id           String             @id @default(cuid())
-  title        String
-  description  String?
-  type         DocumentType
-  fileName     String
-  fileSize     Int // in bytes
-  fileType     String // mime type
-  fileUrl      String
-  uploadedById String
-  uploadedBy   Mentor             @relation(fields: [uploadedById], references: [id])
-  program      ProgramType // G-CMP or E-TIP only
-  track        String?
-  visibility   DocumentVisibility
-  status       DocumentStatus     @default(PUBLISHED)
-  metadata     Json? // JSON for additional fields (dueDate, points, etc.)
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
-
-  // Relations
-  permissions DocumentPermission[]
-  folderId    String?
-  folder      Folder?              @relation("FolderDocuments", fields: [folderId], references: [id])
-  assignments Assignment[]
-}
-
-model Folder {
-  id          String      @id @default(cuid())
-  name        String
-  description String?
-  program     ProgramType
-  track       String?
-  createdBy   String
-  mentor      Mentor?     @relation("MentorFolders", fields: [createdBy], references: [id])
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  // Relations
-  documents Document[] @relation("FolderDocuments")
-}
-
-// Document permissions
-model DocumentPermission {
-  id          String    @id @default(cuid())
-  documentId  String
-  document    Document  @relation(fields: [documentId], references: [id])
-  userId      String // student or mentor ID
-  userRole    UserRole
-  student     Student?  @relation("StudentDocumentPermissions", fields: [userId], references: [id])
-  canView     Boolean   @default(true)
-  canDownload Boolean   @default(true)
-  grantedBy   String
-  grantedAt   DateTime  @default(now())
-  expiresAt   DateTime?
-
-  @@unique([documentId, userId])
-}
-
-model Assignment {
-  id          String      @id @default(cuid())
-  title       String
-  description String?
-  documentId  String
-  document    Document    @relation(fields: [documentId], references: [id])
-  dueDate     DateTime
-  points      Int         @default(100)
-  program     ProgramType
-  track       String?
-  mentorId    String
-  mentor      Mentor      @relation(fields: [mentorId], references: [id])
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  submissions Submission[]
-}
-
-model Submission {
-  id           String           @id @default(cuid())
-  assignmentId String
-  assignment   Assignment       @relation(fields: [assignmentId], references: [id])
-  studentId    String
-  student      Student          @relation(fields: [studentId], references: [id])
-  content      String?
-  files        String[] // URLs to submitted files
-  status       SubmissionStatus @default(SUBMITTED)
-  grade        Int?
-  feedback     String?
-  gradedBy     String?
-  gradedAt     DateTime?
-  submittedAt  DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-
-  @@unique([assignmentId, studentId])
-}
-
-// Outcomes (patents, papers, startups, certifications)
-// Enhance the existing Outcome model
-model Outcome {
-  id          String        @id @default(cuid())
-  type        OutcomeType
-  title       String
-  description String?
-  studentId   String
-  student     Student       @relation(fields: [studentId], references: [id])
-  mentorId    String?
-  mentor      Mentor?       @relation("MentorOutcomes", fields: [mentorId], references: [id])
-  status      OutcomeStatus @default(PENDING)
-  date        DateTime
-  program     ProgramType
-  metadata    Json? // Program-specific data (patent number, journal, etc.)
-  files       String[] // URLs to supporting documents
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-
-  // New fields for better tracking
-  tags        String[] // Keywords for categorization
-  impact      String? // Impact metric (citations, revenue, etc.)
-  externalUrl String? // Link to external resource
-  verifiedBy  String? // Who verified this outcome
-  verifiedAt  DateTime?
-
-  // Relations
-  analytics OutcomeAnalytics[]
-}
-
-// New model for outcome analytics
-model OutcomeAnalytics {
-  id         String    @id @default(cuid())
-  outcomeId  String
-  outcome    Outcome   @relation(fields: [outcomeId], references: [id])
-  views      Int       @default(0)
-  downloads  Int       @default(0)
-  citations  Int       @default(0)
-  shares     Int       @default(0)
-  lastViewed DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-
-  @@unique([outcomeId])
-}
-
-// New model for achievement milestones
-model Achievement {
-  id          String   @id @default(cuid())
-  studentId   String
-  student     Student  @relation(fields: [studentId], references: [id])
-  type        String // 'patent_milestone', 'paper_milestone', etc.
-  title       String
-  description String?
-  date        DateTime
-  metadata    Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-// New model for analytics dashboards
-model Dashboard {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  config      Json // Dashboard configuration
-  createdBy   String
-  user        User     @relation(fields: [createdBy], references: [id])
-  isPublic    Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-// Student Dashboard Stats
-model DashboardStats {
-  id            String    @id @default(cuid())
-  studentId     String
-  student       Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  totalSessions Int       @default(0)
-  totalProgress Int       @default(0)
-  currentStreak Int       @default(0)
-  maxStreak     Int       @default(0)
-  lastActivity  DateTime?
-  updatedAt     DateTime  @updatedAt
-
-  @@unique([studentId])
-}
-
-// New model for saved analytics reports
-model SavedReport {
-  id          String    @id @default(cuid())
-  name        String
-  description String?
-  type        String // 'outcome', 'progress', 'custom'
-  config      Json // Report configuration
-  data        Json? // Cached report data
-  createdBy   String
-  user        User      @relation(fields: [createdBy], references: [id])
-  schedule    String? // Cron expression for scheduled reports
-  lastRunAt   DateTime?
-  nextRunAt   DateTime?
-  recipients  String[] // Email recipients
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-}
-
-// Notifications
-model Notification {
-  id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation("UserNotifications", fields: [userId], references: [id])
-  studentId  String? // Optional direct relation to student
-  student    Student? @relation("StudentNotifications", fields: [studentId], references: [id])
-  mentorId   String? // Optional direct relation to mentor
-  mentor     Mentor?  @relation("MentorNotifications", fields: [mentorId], references: [id])
-  type       String // info, warning, error, success
-  category   String // student, mentor, session, report, outcome, etc.
-  title      String
-  message    String
-  isRead     Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  actionUrl  String?
-  actionText String?
-  metadata   Json? // Additional data
-}
-
-// Tags system
-model Tag {
-  id          String      @id @default(cuid())
-  name        String      @unique
-  slug        String      @unique
-  category    TagCategory
-  color       String?
-  description String?
-  usageCount  Int         @default(0)
-  createdAt   DateTime    @default(now())
-  createdBy   String?
-
-  assignments TagAssignment[]
-}
-
-model TagAssignment {
-  id         String   @id @default(cuid())
-  tagId      String
-  tag        Tag      @relation(fields: [tagId], references: [id])
-  entityId   String
-  entityType String // student, mentor, project, outcome
-  student    Student? @relation("StudentTags", fields: [entityId], references: [id])
-  assignedAt DateTime @default(now())
-  assignedBy String?
-
-  @@unique([tagId, entityId, entityType])
-}
-
-// Student Tags (for skills, interests)
-model StudentTag {
-  id        String   @id @default(cuid())
-  studentId String
-  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  name      String
-  category  String // 'skill', 'interest', 'achievement'
-  createdAt DateTime @default(now())
-}
-
-model AuditLog {
-  id         String   @id @default(cuid())
-  userId     String?
-  user       User?    @relation(fields: [userId], references: [id])
-  action     String
-  entityType String // 'student', 'mentor', 'program', etc.
-  entityId   String?
-  oldValue   Json?
-  newValue   Json?
-  ipAddress  String?
-  userAgent  String?
-  createdAt  DateTime @default(now())
-
-  @@index([userId])
-  @@index([entityType, entityId])
-  @@index([createdAt])
-}
-
-model BulkImportJob {
-  id           String       @id @default(cuid())
-  filename     String
-  fileSize     Int
-  rowCount     Int
-  successCount Int          @default(0)
-  errorCount   Int          @default(0)
-  status       ImportStatus @default(PENDING)
-  errors       Json? // Array of error objects
-  metadata     Json?
-  createdBy    String
-  user         User         @relation(fields: [createdBy], references: [id])
-  createdAt    DateTime     @default(now())
-  completedAt  DateTime?
-  updatedAt    DateTime     @updatedAt
-}
-
-model ScheduledReport {
-  id         String    @id @default(cuid())
-  name       String
-  frequency  String // daily, weekly, monthly
-  config     Json // Report configuration
-  recipients String[] // Email addresses
-  isActive   Boolean   @default(true)
-  createdBy  String
-  user       User      @relation(fields: [createdBy], references: [id]) // This now has a matching opposite relation
-  lastRunAt  DateTime?
-  nextRunAt  DateTime
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-}
-
-// System Settings
-model SystemSettings {
-  id              String   @id @default(cuid())
-  category        String   // 'general', 'notifications', 'security'
-  settings        Json     // Stores key-value pairs for the category
-  updatedBy       String?
-  updatedAt       DateTime @updatedAt
-
-  @@unique([category])
-}
-
-// Email Templates
-model EmailTemplate {
-  id          String   @id @default(cuid())
-  name        String   @unique // e.g. 'welcome_email', 'password_reset'
-  subject     String
-  body        String   @db.Text
-  variables   String[] // e.g. ['name', 'link']
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-// API Keys
-model ApiKey {
-  id          String   @id @default(cuid())
-  name        String
-  key         String   @unique
-  lastUsedAt  DateTime?
-  expiresAt   DateTime?
-  createdBy   String
-  user        User     @relation(fields: [createdBy], references: [id])
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-// System Backups
-model Backup {
-  id          String   @id @default(cuid())
-  fileName    String
-  fileSize    Int
-  fileUrl     String
-  status      String   @default("COMPLETED") // PENDING, IN_PROGRESS, COMPLETED, FAILED
-  type        String   @default("MANUAL") // MANUAL, AUTOMATED
-  createdBy   String?
-  createdAt   DateTime @default(now())
-}
-

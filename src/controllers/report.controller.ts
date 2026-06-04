@@ -62,6 +62,7 @@ export class ReportController {
         weekEnd: r.weekEnd,
         attendanceRate: r.attendanceRate,
         performanceAvg: r.performanceAvg,
+        fileUrl: r.fileUrl,
       }));
 
       res.json({

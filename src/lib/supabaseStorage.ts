@@ -31,7 +31,8 @@ export const STORAGE_BUCKET = 'documents';
 export async function uploadToSupabase(
   fileBuffer: Buffer,
   fileName: string,
-  mimeType: string
+  mimeType: string,
+  bucketName: string = STORAGE_BUCKET
 ): Promise<string> {
   const timestamp = Date.now();
   const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -51,7 +52,7 @@ export async function uploadToSupabase(
   }
 
   const { data, error } = await supabaseAdmin.storage
-    .from(STORAGE_BUCKET)
+    .from(bucketName)
     .upload(storagePath, fileBuffer, {
       contentType: mimeType,
       upsert: false,

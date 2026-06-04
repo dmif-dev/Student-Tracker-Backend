@@ -246,4 +246,86 @@ export class ExportService {
 
     return filePath;
   }
+
+  async exportReportToBuffer(report: any): Promise<Buffer> {
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+    const buffers: Buffer[] = [];
+    
+    return new Promise((resolve, reject) => {
+      doc.on('data', buffers.push.bind(buffers));
+      doc.on('end', () => {
+        const pdfBuffer = Buffer.concat(buffers);
+        resolve(pdfBuffer);
+      });
+      doc.on('error', reject);
+
+      // Header
+      doc.fontSize(20).font('Helvetica-Bold').text('Weekly Progress Report', { align: 'center' });
+      doc.moveDown();
+      doc.fontSize(12).font('Helvetica').text(`Generated: ${new Date().toLocaleDateString()}`, { align: 'right' });
+      doc.moveDown();
+
+      // Student Info
+      doc.fontSize(14).font('Helvetica-Bold').text('Student Information');
+      doc.fontSize(12).font('Helvetica');
+      doc.text(`Name: ${report.student?.name || 'N/A'}`);
+      doc.text(`Program: ${report.student?.program?.name || report.student?.program || 'N/A'}`);
+      doc.text(`Track: ${report.student?.track?.name || report.student?.track || 'N/A'}`);
+      doc.text(`Mentor: ${report.student?.mentor?.name || 'Not assigned'}`);
+      doc.moveDown();
+
+      // Report Period
+      doc.fontSize(14).font('Helvetica-Bold').text('Report Period');
+      doc.fontSize(12).font('Helvetica');
+      doc.text(`Week: ${new Date(report.weekStart).toLocaleDateString()} - ${new Date(report.weekEnd).toLocaleDateString()}`);
+      doc.moveDown();
+
+      // Summary
+      doc.fontSize(14).font('Helvetica-Bold').text('Summary');
+      doc.fontSize(12).font('Helvetica');
+      doc.text(report.summary);
+      doc.moveDown();
+
+      // Statistics
+      doc.fontSize(14).font('Helvetica-Bold').text('Statistics');
+      doc.fontSize(12).font('Helvetica');
+      doc.text(`Attendance Rate: ${Math.round(report.attendanceRate)}%`);
+      if (report.performanceAvg) {
+        doc.text(`Average Performance: ${report.performanceAvg.toFixed(1)}/10`);
+      }
+      doc.text(`Topics Covered: ${report.topicsCovered.length}`);
+      doc.moveDown();
+
+      // Topics
+      if (report.topicsCovered.length > 0) {
+        doc.fontSize(14).font('Helvetica-Bold').text('Topics Covered');
+        doc.fontSize(12).font('Helvetica');
+        report.topicsCovered.forEach((topic: string) => {
+          doc.text(`• ${topic}`);
+        });
+        doc.moveDown();
+      }
+
+      // Strengths
+      if (report.strengths.length > 0) {
+        doc.fontSize(14).font('Helvetica-Bold').text('Strengths');
+        doc.fontSize(12).font('Helvetica');
+        report.strengths.forEach((strength: string) => {
+          doc.text(`✓ ${strength}`);
+        });
+        doc.moveDown();
+      }
+
+      // Areas for Improvement
+      if (report.areasForImprovement.length > 0) {
+        doc.fontSize(14).font('Helvetica-Bold').text('Areas for Improvement');
+        doc.fontSize(12).font('Helvetica');
+        report.areasForImprovement.forEach((area: string) => {
+          doc.text(`• ${area}`);
+        });
+      }
+
+      doc.end();
+    });
+  }
 }
