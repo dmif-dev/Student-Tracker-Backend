@@ -1,6 +1,11 @@
 // backend/src/services/report-generation.service.ts
 import { prisma } from '../lib/prisma.js';
 import { AttendanceStatus } from '@prisma/client';
+import { ExportService } from './export.service.js';
+import { uploadToSupabase, supabaseAdmin, STORAGE_BUCKET } from '../lib/supabaseStorage.js';
+import path from 'path';
+
+const exportService = new ExportService();
 
 export class ReportGenerationService {
   getCurrentWeekStart(): Date {
@@ -98,7 +103,53 @@ export class ReportGenerationService {
       performanceAvg
     );
 
-    // Create report
+    // Fetch student info with program and track names for the PDF
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+      include: {
+        program: true,
+        track: true,
+        mentor: true
+      }
+    });
+
+    // Prepare data for the PDF
+    const reportData = {
+      student: {
+        name: student?.name || 'N/A',
+        program: student?.program?.name || 'N/A',
+        track: student?.track?.name || 'N/A',
+        mentor: student?.mentor ? { name: student.mentor.name } : null
+      },
+      weekStart: start,
+      weekEnd: end,
+      summary,
+      strengths,
+      areasForImprovement,
+      attendanceRate,
+      topicsCovered,
+      performanceAvg
+    };
+
+    // Generate PDF buffer in memory
+    const pdfBuffer = await exportService.exportReportToBuffer(reportData);
+
+    // Upload PDF buffer to 'Reports' storage bucket
+    const fileName = `weekly-report-${studentId}-${start.getTime()}.pdf`;
+    const storagePath = await uploadToSupabase(pdfBuffer, fileName, 'application/pdf', 'Reports');
+
+    // Retrieve public URL from 'Reports' bucket
+    let publicUrl = '';
+    if (process.env.SUPABASE_SERVICE_KEY?.trim()) {
+      const { data } = supabaseAdmin.storage.from('Reports').getPublicUrl(storagePath);
+      publicUrl = data.publicUrl;
+    } else {
+      // Local development fallback
+      const serverPort = process.env.PORT || 4000;
+      publicUrl = `http://localhost:${serverPort}/uploads/${path.basename(storagePath)}`;
+    }
+
+    // Create report in database with fileUrl
     const report = await prisma.weeklyReport.create({
       data: {
         studentId,
@@ -110,6 +161,7 @@ export class ReportGenerationService {
         attendanceRate,
         topicsCovered,
         performanceAvg,
+        fileUrl: publicUrl,
         generatedAt: new Date()
       },
       include: {

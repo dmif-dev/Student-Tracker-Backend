@@ -31,10 +31,10 @@
 //   try {
 //     // Check if programs already exist
 //     console.log('Checking existing programs...');
-    
+
 //     // Create programs with upsert
 //     console.log('\nCreating programs...');
-    
+
 //     const gCMP = await prisma.program.upsert({
 //       where: { name: 'G-CMP' },
 //       update: {},
@@ -151,7 +151,7 @@
 
 //     // Create admin user
 //     console.log('\nCreating users...');
-    
+
 //     const adminPassword = await bcrypt.hash('admin123', 10);
 //     await prisma.user.upsert({
 //       where: { email: 'admin@dmif.org' },
@@ -202,7 +202,7 @@
 
 //     // Create student user
 //     const studentPassword = await bcrypt.hash('student123', 10);
-    
+
 //     const studentUser = await prisma.user.upsert({
 //       where: { email: 'student@dmif.org' },
 //       update: {},
@@ -236,7 +236,7 @@
 //       // Check if progress already exists for today
 //       const today = new Date();
 //       today.setHours(0, 0, 0, 0);
-      
+
 //       const existingProgress = await prisma.dailyProgress.findFirst({
 //         where: {
 //           studentId: studentRecord.id,
@@ -266,7 +266,7 @@
 //     }
 
 //     console.log('\n🌱 Seeding complete!');
-    
+
 //     // Print summary
 //     console.log('\n📊 Database Summary:');
 //     console.log(`Programs: ${await prisma.program.count()}`);
@@ -274,7 +274,7 @@
 //     console.log(`Users: ${await prisma.user.count()}`);
 //     console.log(`Students: ${await prisma.student.count()}`);
 //     console.log(`Mentors: ${await prisma.mentor.count()}`);
-    
+
 //   } catch (error) {
 //     console.error('❌ Seeding failed:', error);
 //     throw error;
@@ -319,7 +319,7 @@ async function getOrCreateSupabaseUser(email: string, password: string, role: st
     password,
   });
   if (!signInError && signInData?.user) return signInData.user;
-  
+
   // 1b. Fallback for the admin account if password was different
   const { data: adminSignIn } = await supabase.auth.signInWithPassword({ email, password: 'admin123' });
   if (adminSignIn?.user) return adminSignIn.user;
