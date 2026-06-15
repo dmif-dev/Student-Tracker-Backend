@@ -85,6 +85,7 @@ export class ReportController {
         weekEnd: r.weekEnd,
         attendanceRate: r.attendanceRate,
         performanceAvg: r.performanceAvg,
+        fileUrl: r.fileUrl,
       }));
 
       res.json({
@@ -207,7 +208,10 @@ export class ReportController {
       res.status(201).json(report);
     } catch (error: any) {
       console.error('Generate report error:', error);
-      res.status(500).json({ error: error.message });
+      const isValidationError = 
+        error.message?.includes('No progress data') || 
+        error.message?.includes('already exists');
+      res.status(isValidationError ? 400 : 500).json({ error: error.message });
     }
   }
 
