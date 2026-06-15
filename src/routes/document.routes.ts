@@ -39,6 +39,12 @@ const upload = multer({
   }
 });
 
+// ==================== Folder Management ====================
+router.post('/folders', authenticate, authorize('ADMIN', 'MENTOR'), validate(folderValidator), documentController.createFolder);
+router.get('/folders', authenticate, documentController.getFolders);
+router.post('/folders/:folderId/documents/:documentId', authenticate, authorize('ADMIN', 'MENTOR'), documentController.addDocumentToFolder);
+router.delete('/folders/:folderId/documents/:documentId', authenticate, authorize('ADMIN', 'MENTOR'), documentController.removeDocumentFromFolder);
+
 // ==================== Document CRUD ====================
 router.post(
   '/upload',
@@ -64,11 +70,5 @@ router.get('/:id/permissions', authenticate, authorize('ADMIN', 'MENTOR'), docum
 router.post('/:id/permissions', authenticate, authorize('ADMIN', 'MENTOR'), validate(permissionValidator), documentController.grantPermission);
 router.delete('/:id/permissions/:studentId', authenticate, authorize('ADMIN', 'MENTOR'), documentController.revokePermission);
 router.post('/:id/permissions/bulk', authenticate, authorize('ADMIN', 'MENTOR'), documentController.grantBulkPermissions);
-
-// ==================== Folder Management ====================
-router.post('/folders', authenticate, authorize('ADMIN', 'MENTOR'), validate(folderValidator), documentController.createFolder);
-router.get('/folders', authenticate, documentController.getFolders);
-router.post('/folders/:folderId/documents/:documentId', authenticate, authorize('ADMIN', 'MENTOR'), documentController.addDocumentToFolder);
-router.delete('/folders/:folderId/documents/:documentId', authenticate, authorize('ADMIN', 'MENTOR'), documentController.removeDocumentFromFolder);
 
 export default router;

@@ -12,6 +12,13 @@ import {
 const router = Router();
 const sessionController = new SessionController();
 
+// ==================== Filtered Lists ====================
+router.get('/mentor/:mentorId', authenticate, sessionController.getSessionsByMentor);
+router.get('/student/:studentId', authenticate, sessionController.getSessionsByStudent);
+
+// ==================== Admin Only ====================
+router.get('/admin/all', authenticate, authorize('ADMIN'), sessionController.getAllSessions);
+
 // ==================== Session CRUD ====================
 router.post('/', authenticate, validate(sessionValidator), sessionController.scheduleSession);
 router.get('/upcoming', authenticate, sessionController.getUpcomingSessions);
@@ -25,12 +32,5 @@ router.delete('/:id/cancel', authenticate, sessionController.cancelSession);
 // ==================== Session Notes ====================
 router.post('/:id/notes', authenticate, validate(sessionNoteValidator), sessionController.addSessionNotes);
 router.get('/:id/notes', authenticate, sessionController.getSessionNotes);
-
-// ==================== Filtered Lists ====================
-router.get('/mentor/:mentorId', authenticate, sessionController.getSessionsByMentor);
-router.get('/student/:studentId', authenticate, sessionController.getSessionsByStudent);
-
-// ==================== Admin Only ====================
-router.get('/admin/all', authenticate, authorize('ADMIN'), sessionController.getAllSessions);
 
 export default router;
