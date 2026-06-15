@@ -20,6 +20,7 @@ router.get('/calendar', authenticate, sessionController.getCalendarEvents);
 router.get('/stats', authenticate, sessionController.getSessionStats);
 router.get('/:id', authenticate, sessionController.getSessionById);
 router.put('/:id', authenticate, validate(sessionUpdateValidator), sessionController.updateSession);
+router.put('/:id/respond', authenticate, sessionController.respondToRequest);
 router.delete('/:id/cancel', authenticate, sessionController.cancelSession);
 
 // ==================== Session Notes ====================

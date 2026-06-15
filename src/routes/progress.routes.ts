@@ -10,11 +10,19 @@ const progressController = new ProgressController();
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }
+  limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
 });
 
 // Daily progress
-router.post('/upload', authenticate, upload.single('file'), progressController.uploadEvidence.bind(progressController));
+router.post('/upload', authenticate, (req, res, next) => {
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      console.error('Multer error:', err);
+      return res.status(400).json({ error: 'File upload error', details: err.message });
+    }
+    next();
+  });
+}, progressController.uploadEvidence.bind(progressController));
 router.post('/', authenticate, validate(progressValidator), progressController.createProgress);
 router.get('/student/:studentId', authenticate, progressController.getStudentProgress);
 router.get('/:id', authenticate, progressController.getProgressById);

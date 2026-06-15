@@ -24,9 +24,10 @@ export class ProgressController {
       );
 
       res.status(201).json({ fileUrl: storagePath });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Upload evidence error:', error);
-      res.status(500).json({ error: 'Failed to upload evidence' });
+      require('fs').writeFileSync('upload-error-debug.txt', String(error?.stack || error));
+      res.status(500).json({ error: 'Failed to upload evidence', details: error?.message || String(error) });
     }
   }
 

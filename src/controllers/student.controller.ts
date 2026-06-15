@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { logActivity } from '../utils/activity.js';
+import { uploadToSupabase, downloadFromSupabase } from '../lib/supabaseStorage.js';
 
 export class StudentController {
   async getAllStudents(req: Request, res: Response) {
@@ -323,6 +324,72 @@ export class StudentController {
     } catch (error) {
       console.error('Reset student progress error:', error);
       res.status(500).json({ error: 'Failed to reset student progress' });
+    }
+  }
+
+  async uploadAvatar(req: AuthRequest, res: Response) {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      const student = await prisma.student.findUnique({
+        where: { userId: req.user?.id }
+      });
+
+      if (!student) {
+        return res.status(404).json({ error: 'Student not found' });
+      }
+
+      const storagePath = await uploadToSupabase(
+        req.file.buffer,
+        `student_${student.id}_${Date.now()}_${req.file.originalname}`,
+        req.file.mimetype,
+        'avatars'
+      );
+
+      const updated = await prisma.student.update({
+        where: { id: student.id },
+        data: { avatar: storagePath }
+      });
+
+      res.json({ success: true, avatar: storagePath });
+    } catch (error) {
+      console.error('Upload avatar error:', error);
+      res.status(500).json({ error: 'Failed to upload avatar' });
+    }
+  }
+
+  async getAvatar(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      const student = await prisma.student.findUnique({
+        where: { id }
+      });
+
+      if (!student || !student.avatar) {
+        return res.status(404).json({ error: 'Avatar not found' });
+      }
+
+      if (student.avatar.startsWith('http')) {
+        return res.redirect(student.avatar);
+      }
+
+      try {
+        const fileBuffer = await downloadFromSupabase(student.avatar, 'avatars');
+        const isPng = student.avatar.toLowerCase().endsWith('.png');
+        const isGif = student.avatar.toLowerCase().endsWith('.gif');
+        res.setHeader('Content-Type', isPng ? 'image/png' : isGif ? 'image/gif' : 'image/jpeg');
+        res.send(fileBuffer);
+      } catch (downloadError) {
+        console.error('Failed to download avatar from storage:', downloadError);
+        // Fallback to default avatar
+        res.redirect('/assets/student-profile.jpg');
+      }
+    } catch (error) {
+      console.error('Get avatar error:', error);
+      res.status(500).json({ error: 'Failed to get avatar' });
     }
   }
 }

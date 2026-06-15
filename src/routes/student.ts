@@ -1,8 +1,22 @@
 import { Router } from 'express';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth.js';
 import { prisma } from '../lib/prisma.js';
+import multer from 'multer';
+import { StudentController } from '../controllers/student.controller.js';
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  }
+});
+
+const studentController = new StudentController();
 
 const router = Router();
+
+// ==================== Public Routes ====================
+router.get('/:id/avatar', studentController.getAvatar);
 
 // Apply Student or Admin protection
 router.use(authenticate, authorize('STUDENT'));
@@ -146,7 +160,7 @@ router.put('/profile', async (req: AuthRequest, res) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { firstName, lastName, phone, location, bio, website, linkedin, github } = req.body;
+    const { firstName, lastName, phone, location, bio, website, linkedin, github, removeAvatar } = req.body;
     const fullName = `${firstName || ''} ${lastName || ''}`.trim();
 
     const student = await prisma.student.update({
@@ -159,6 +173,7 @@ router.put('/profile', async (req: AuthRequest, res) => {
         website,
         linkedin,
         github,
+        ...(removeAvatar === true && { avatar: null }),
       }
     });
     
@@ -168,6 +183,9 @@ router.put('/profile', async (req: AuthRequest, res) => {
     res.status(500).json({ error: 'Failed to update preferences' });
   }
 });
+
+// ==================== Avatar Upload ====================
+router.post('/profile/avatar', upload.single('avatar'), studentController.uploadAvatar);
 
 // ==================== Personal Events ====================
 router.get('/events', async (req: AuthRequest, res) => {

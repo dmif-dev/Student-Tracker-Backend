@@ -117,6 +117,15 @@ export class AuthController {
           console.log(`✅ Created admin profile for ${user.email}`);
         }
       }
+      // Update lastLogin timestamp in our local database
+      try {
+        await prisma.user.updateMany({
+          where: { email },
+          data: { lastLogin: new Date() }
+        });
+      } catch (updateErr) {
+        console.error('Failed to update lastLogin:', updateErr);
+      }
 
       res.json({
         success: true,

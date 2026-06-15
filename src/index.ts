@@ -129,8 +129,8 @@ app.get('/health', (req, res) => {
 
 // Error handling middleware
 app.use((err: any, req: any, res: any, next: any) => {
-  console.error('Error:', err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  console.error('Global Error Handler:', err.stack);
+  res.status(500).json({ error: 'Something went wrong!', details: err.message || err.toString() });
 });
 
 // Start server

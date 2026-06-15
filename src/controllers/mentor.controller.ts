@@ -194,8 +194,11 @@ export class MentorController {
       });
 
       res.status(201).json(mentor);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Create mentor error:', error);
+      if (error.code === 'P2002') {
+        return res.status(400).json({ error: 'A mentor with this email already exists' });
+      }
       res.status(500).json({ error: 'Failed to create mentor' });
     }
   }
@@ -449,7 +452,7 @@ export class MentorController {
         data: {
           userId: session.student.user.id,
           type: 'success',
-          category: 'session',
+          category: 'notes',
           title: 'Session Notes Added',
           message: `Notes from your session have been added`,
           actionUrl: `/sessions/${sessionId}`,

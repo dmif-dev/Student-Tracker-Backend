@@ -53,8 +53,12 @@ export class SessionController {
         });
       }
 
-      // Generate meeting link if not provided
-      const meetingLink = sessionData.meetingLink || await sessionService.generateMeetingLink();
+      // Determine status based on requester role
+      const isStudent = req.user?.role === 'STUDENT';
+      const initialStatus = isStudent ? 'PENDING' : 'SCHEDULED';
+
+      // Generate meeting link if not provided, but skip for pending requests
+      const meetingLink = sessionData.meetingLink || (isStudent ? null : await sessionService.generateMeetingLink());
 
       // Create session
       const session = await prisma.session.create({
@@ -66,7 +70,7 @@ export class SessionController {
           endTime: sessionData.endTime,
           topic: sessionData.topic,
           meetingLink,
-          status: 'SCHEDULED'
+          status: initialStatus
         },
         include: {
           student: {
@@ -89,14 +93,24 @@ export class SessionController {
       });
 
       // Create notifications
+      const studentTitle = isStudent ? 'Session Request Sent' : 'Session Scheduled';
+      const studentMessage = isStudent 
+        ? `Your request for a session with ${session.mentor.name} on ${new Date(session.date).toLocaleDateString()} has been sent for approval.`
+        : `Session with ${session.mentor.name} scheduled for ${new Date(session.date).toLocaleDateString()} at ${session.startTime}`;
+      
+      const mentorTitle = isStudent ? 'New Session Request' : 'Session Scheduled';
+      const mentorMessage = isStudent
+        ? `${session.student.name} requested a session on ${new Date(session.date).toLocaleDateString()} at ${session.startTime}`
+        : `Session with ${session.student.name} scheduled for ${new Date(session.date).toLocaleDateString()} at ${session.startTime}`;
+
       await prisma.notification.createMany({
         data: [
           {
             userId: session.student.user.id,
             type: 'info',
             category: 'session',
-            title: 'Session Scheduled',
-            message: `Session with ${session.mentor.name} scheduled for ${new Date(session.date).toLocaleDateString()} at ${session.startTime}`,
+            title: studentTitle,
+            message: studentMessage,
             actionUrl: `/sessions/${session.id}`,
             actionText: 'View Session',
             metadata: { sessionId: session.id }
@@ -105,8 +119,8 @@ export class SessionController {
             userId: session.mentor.user.id,
             type: 'info',
             category: 'session',
-            title: 'Session Scheduled',
-            message: `Session with ${session.student.name} scheduled for ${new Date(session.date).toLocaleDateString()} at ${session.startTime}`,
+            title: mentorTitle,
+            message: mentorMessage,
             actionUrl: `/sessions/${session.id}`,
             actionText: 'View Session',
             metadata: { sessionId: session.id }
@@ -115,9 +129,71 @@ export class SessionController {
       });
 
       res.status(201).json(session);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Schedule session error:', error);
-      res.status(500).json({ error: 'Failed to schedule session' });
+      res.status(500).json({ error: error.message || error.toString() });
+    }
+  }
+
+  async respondToRequest(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const { action } = req.body; // 'ACCEPT' or 'DENY'
+
+      const session = await prisma.session.findUnique({
+        where: { id },
+        include: {
+          student: { include: { user: true } }
+        }
+      });
+
+      if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+
+      // Check if user is the assigned mentor
+      if (req.user?.role !== 'ADMIN' && req.user?.mentor?.id !== session.mentorId) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      if (session.status !== 'PENDING') {
+        return res.status(400).json({ error: 'Session is not in PENDING state' });
+      }
+
+      const newStatus = action === 'ACCEPT' ? 'SCHEDULED' : 'CANCELLED';
+      const meetingLink = req.body.meetingLink;
+
+      const updatedSession = await prisma.session.update({
+        where: { id },
+        data: { 
+          status: newStatus,
+          ...(meetingLink ? { meetingLink } : {})
+        }
+      });
+
+      // Notify the student
+      const notificationTitle = action === 'ACCEPT' ? 'Session Request Accepted' : 'Session Request Denied';
+      const notificationMessage = action === 'ACCEPT' 
+        ? `Your session request for ${new Date(session.date).toLocaleDateString()} at ${session.startTime} has been accepted by your mentor.`
+        : `Your session request for ${new Date(session.date).toLocaleDateString()} at ${session.startTime} could not be accepted. Please request a different time.`;
+
+      await prisma.notification.create({
+        data: {
+          userId: session.student.user.id,
+          type: 'info',
+          category: 'session',
+          title: notificationTitle,
+          message: notificationMessage,
+          actionUrl: `/Student/dashboard`,
+          actionText: 'View Dashboard',
+          metadata: { sessionId: session.id }
+        }
+      });
+
+      res.json(updatedSession);
+    } catch (error) {
+      console.error('Respond to session request error:', error);
+      res.status(500).json({ error: 'Failed to respond to session request' });
     }
   }
 
@@ -421,7 +497,7 @@ export class SessionController {
         data: {
           userId: session.student.user.id,
           type: 'success',
-          category: 'session',
+          category: 'notes',
           title: 'Session Notes Added',
           message: `Notes from your session with ${req.user?.mentor?.name || 'your mentor'} have been added`,
           actionUrl: `/sessions/${id}`,
